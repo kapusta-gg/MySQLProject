@@ -25,12 +25,15 @@ class Main(QMainWindow):
         self.table_info.move(QPoint(20, 20))
         self.table_info.currentIndexChanged.connect(self.change_table)
 
-        self.add_conditions_box = QComboBox(self)
-        self.add_conditions_box.move(QPoint(200, 70))
-
         self.add_conditions_line = QLineEdit(self)
         self.add_conditions_line.move(QPoint(300, 70))
         self.add_conditions_line.resize(QSize(650, 30))
+        self.add_conditions_line.textChanged.connect(self.add_items_to_table)
+
+        self.add_conditions_box = QComboBox(self)
+        self.add_conditions_box.move(QPoint(200, 70))
+        self.add_conditions_box.currentIndexChanged.connect(self.add_items_to_table)
+        self.add_conditions_box.currentIndexChanged.connect(self.add_conditions_line.clear)
 
         self.tableViewer = QTableWidget(self)
         self.tableViewer.move(QPoint(200, 100))
@@ -57,14 +60,21 @@ class Main(QMainWindow):
 
     def add_items_to_table(self):
         self.tableViewer.clear()
+        if self.add_conditions_line.text():
+            id_row = self.add_conditions_box.currentIndex()
+            if self.add_conditions_line.text()[-1] == ";":
+                data = [col for col in self.data if self.add_conditions_line.text()[:-1] == str(col[id_row])]
+            else:
+                data = [col for col in self.data if self.add_conditions_line.text() in str(col[id_row])]
+        else:
+            data = self.data
         row_len = len(self.table_names)
         self.tableViewer.setColumnCount(row_len)
         self.tableViewer.setRowCount(0)
-
-        for i in range(len(self.data)):
+        for i in range(len(data)):
             self.tableViewer.setRowCount(self.tableViewer.rowCount() + 1)
             for j in range(row_len):
-                self.tableViewer.setItem(i, j, QTableWidgetItem(str(self.data[i][j])))
+                self.tableViewer.setItem(i, j, QTableWidgetItem(str(data[i][j])))
 
         self.tableViewer.setHorizontalHeaderLabels(self.table_names)
         self.tableViewer.resizeColumnsToContents()
