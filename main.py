@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QComboBox, QTableWidget, 
 from PyQt5.QtCore import QPoint, QTimer
 
 from database import create_connection
-from constants import *
+from const.constants_main import *
 
 
 class Main(QMainWindow):
