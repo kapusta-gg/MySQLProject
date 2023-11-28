@@ -2,7 +2,7 @@ import sys
 
 from PyQt5.QtWidgets import QApplication, QMainWindow, QComboBox, QTableWidget, QTableWidgetItem, QAbstractItemView,\
     QLineEdit, QPushButton, QInputDialog, QErrorMessage, QMessageBox
-from PyQt5.QtCore import QPoint
+from PyQt5.QtCore import QPoint, QTimer
 
 from database import create_connection
 from constants import *
@@ -15,6 +15,9 @@ class Main(QMainWindow):
         self.last_command = None
         self.data = None
         self.table_names = None
+        self.id_row = 0
+        self.text_row = ""
+        self.isReset = True
 
         self.setFixedSize(MAIN_WINDOW_SIZE)
 
@@ -49,11 +52,16 @@ class Main(QMainWindow):
         self.add_col.resize(QSize(140, 60))
         self.add_col.move(QPoint(30, 160))
 
+        self.update_table_timer = QTimer()
+        self.update_table_timer.setInterval(UPDATE_SECONDS * SEC_IN_MILISEC)
+        self.update_table_timer.timeout.connect(self.update_table)
+        self.update_table_timer.start()
+
         self.change_table()
 
     def change_table(self):
-        self.add_conditions_box.clear()
-        self.add_conditions_line.clear()
+        if self.isReset:
+            self.add_conditions_box.clear()
 
         cur = self.db.cursor()
         self.last_command = RU_TABLE_DICT_PROCEDURE[self.table_info.currentText()]
@@ -67,15 +75,17 @@ class Main(QMainWindow):
 
         cur.close()
         self.db.reconnect()
+        self.isReset = True
 
     def add_items_to_table(self):
         self.tableViewer.clear()
         if self.add_conditions_line.text():
-            id_row = self.add_conditions_box.currentIndex()
-            if self.add_conditions_line.text()[-1] == ";":
-                data = [col for col in self.data if self.add_conditions_line.text()[:-1] == str(col[id_row])]
+            self.id_row = self.add_conditions_box.currentIndex()
+            self.text_row = self.add_conditions_line.text()
+            if self.text_row[-1] == ";":
+                data = [col for col in self.data if self.text_row[:-1] == str(col[self.id_row])]
             else:
-                data = [col for col in self.data if self.add_conditions_line.text() in str(col[id_row])]
+                data = [col for col in self.data if self.text_row in str(col[self.id_row])]
         else:
             data = self.data
         row_len = len(self.table_names)
@@ -95,6 +105,7 @@ class Main(QMainWindow):
         self.tableViewer.setCellWidget(i, j, temp_btn)
 
     def delete_rows(self):
+        self.update_table_timer.stop()
         text, ok = QInputDialog().getText(self, "Введите пароль", "Введите пароль администратора")
         if ok and text == ADMIN_PASSWORD:
             indexes = [self.tableViewer.item(i, 0).text() for i in range(self.tableViewer.rowCount())]
@@ -124,6 +135,11 @@ class Main(QMainWindow):
             ok_dlg.setText(f"Успешно удалено {len(indexes)} записей из таблицы '{self.table_info.currentText()}'")
             ok_dlg.setStandardButtons(QMessageBox.Ok)
             ok_dlg.exec()
+        self.update_table_timer.start()
+
+    def update_table(self):
+        self.isReset = False
+        self.change_table()
 
 
 def except_hook(cls, exception, traceback):

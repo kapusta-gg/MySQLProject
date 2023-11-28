@@ -1,5 +1,7 @@
 from PyQt5.QtCore import QSize
 
+UPDATE_SECONDS = 5
+SEC_IN_MILISEC = 1000
 MAIN_WINDOW_SIZE = QSize(1000, 1000)
 TABLES_FOR_INFO = ["Ученики", "Преподователи", "Курсы", "Группы"]
 DATABASE_TABLES = {"Ученики": "student",
