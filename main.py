@@ -1,7 +1,7 @@
 import sys
 
 from PyQt5.QtWidgets import QApplication, QMainWindow, QComboBox, QTableWidget, QTableWidgetItem, QAbstractItemView,\
-    QLineEdit
+    QLineEdit, QPushButton
 from PyQt5.QtCore import QPoint
 
 from database import create_connection
@@ -40,6 +40,14 @@ class Main(QMainWindow):
         self.tableViewer.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.tableViewer.setFixedSize(QSize(750, 850))
 
+        self.delete_cols = QPushButton("Удалить все\nотображаемые записи", self)
+        self.delete_cols.resize(QSize(140, 60))
+        self.delete_cols.move(QPoint(30, 100))
+
+        self.add_col = QPushButton("Добавить запись", self)
+        self.add_col.resize(QSize(140, 60))
+        self.add_col.move(QPoint(30, 160))
+
         self.change_table()
 
     def change_table(self):
@@ -50,6 +58,7 @@ class Main(QMainWindow):
         self.last_command = RU_TABLE_DICT_PROCEDURE[self.table_info.currentText()]
         cur.execute(self.last_command)
         self.table_names = [i[0] for i in cur.description]
+        self.table_names.append("Полная инфо.")
         self.data = cur.fetchall()
 
         self.add_conditions_box.addItems(self.table_names)
@@ -73,12 +82,16 @@ class Main(QMainWindow):
         self.tableViewer.setRowCount(0)
         for i in range(len(data)):
             self.tableViewer.setRowCount(self.tableViewer.rowCount() + 1)
-            for j in range(row_len):
+            for j in range(row_len - 1):
                 self.tableViewer.setItem(i, j, QTableWidgetItem(str(data[i][j])))
-
+            self.add_cell_button(i, row_len - 1)
         self.tableViewer.setHorizontalHeaderLabels(self.table_names)
         self.tableViewer.resizeColumnsToContents()
 
+    def add_cell_button(self, i, j):
+        temp_btn = QPushButton("Инфо", self)
+
+        self.tableViewer.setCellWidget(i, j, temp_btn)
 
 def except_hook(cls, exception, traceback):
     sys.__excepthook__(cls, exception, traceback)
