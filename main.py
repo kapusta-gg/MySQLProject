@@ -10,10 +10,12 @@ from constants import *
 class Main(QMainWindow):
     def __init__(self):
         super().__init__()
+
+        self.last_command = None
+
         self.setFixedSize(MAIN_WINDOW_SIZE)
 
         self.db = create_connection()
-        self.cur = self.db.cursor()
 
         self.table_info = QComboBox(self)
         self.table_info.addItems(TABLES_FOR_INFO)
@@ -25,10 +27,14 @@ class Main(QMainWindow):
         self.tableViewer.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.tableViewer.setFixedSize(QSize(750, 850))
 
+        self.change_table()
+
     def change_table(self):
-        table = RU_TABLE_DICT[self.table_info.currentText()]
-        self.cur.execute(f"SELECT * FROM {table}")
-        data = self.cur.fetchall()
+        cur = self.db.cursor()
+        self.last_command = RU_TABLE_DICT_PROCEDURE[self.table_info.currentText()]
+        cur.execute(self.last_command)
+        table_names = [i[0] for i in cur.description]
+        data = cur.fetchall()
 
         row_len = len(data[0])
         self.tableViewer.setColumnCount(row_len)
@@ -37,10 +43,20 @@ class Main(QMainWindow):
             self.tableViewer.setRowCount(self.tableViewer.rowCount() + 1)
             for j in range(row_len):
                 self.tableViewer.setItem(i, j, QTableWidgetItem(str(data[i][j])))
+        self.tableViewer.setHorizontalHeaderLabels(table_names)
+        self.tableViewer.resizeColumnsToContents()
+
+        cur.close()
+        self.db.reconnect()
+
+
+def except_hook(cls, exception, traceback):
+    sys.__excepthook__(cls, exception, traceback)
 
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     ex = Main()
     ex.show()
+    sys.excepthook = except_hook
     app.exec_()
