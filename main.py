@@ -1,7 +1,7 @@
 import sys
 
 from PyQt5.QtWidgets import QApplication, QMainWindow, QComboBox, QTableWidget, QTableWidgetItem, QAbstractItemView,\
-    QLineEdit, QPushButton
+    QLineEdit, QPushButton, QInputDialog, QErrorMessage, QMessageBox
 from PyQt5.QtCore import QPoint
 
 from database import create_connection
@@ -40,9 +40,10 @@ class Main(QMainWindow):
         self.tableViewer.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.tableViewer.setFixedSize(QSize(750, 850))
 
-        self.delete_cols = QPushButton("Удалить все\nотображаемые записи", self)
-        self.delete_cols.resize(QSize(140, 60))
-        self.delete_cols.move(QPoint(30, 100))
+        self.delete_rows_btn = QPushButton("Удалить все\nотображаемые записи", self)
+        self.delete_rows_btn.resize(QSize(140, 60))
+        self.delete_rows_btn.move(QPoint(30, 100))
+        self.delete_rows_btn.clicked.connect(self.delete_rows)
 
         self.add_col = QPushButton("Добавить запись", self)
         self.add_col.resize(QSize(140, 60))
@@ -58,7 +59,7 @@ class Main(QMainWindow):
         self.last_command = RU_TABLE_DICT_PROCEDURE[self.table_info.currentText()]
         cur.execute(self.last_command)
         self.table_names = [i[0] for i in cur.description]
-        self.table_names.append("Полная инфо.")
+        self.table_names.append("Доп. инфо.")
         self.data = cur.fetchall()
 
         self.add_conditions_box.addItems(self.table_names)
@@ -92,6 +93,38 @@ class Main(QMainWindow):
         temp_btn = QPushButton("Инфо", self)
 
         self.tableViewer.setCellWidget(i, j, temp_btn)
+
+    def delete_rows(self):
+        text, ok = QInputDialog().getText(self, "Введите пароль", "Введите пароль администратора")
+        if ok and text == ADMIN_PASSWORD:
+            indexes = [self.tableViewer.item(i, 0).text() for i in range(self.tableViewer.rowCount())]
+            self.accept_delete(indexes)
+        else:
+            QErrorMessage(self).showMessage("Отказано в доступе")
+
+    def accept_delete(self, indexes):
+        accept_dlg = QMessageBox(self)
+        accept_dlg.setWindowTitle("Подтверждение")
+        accept_dlg.setText(f"Вы точно хотите удалить из таблицы '{self.table_info.currentText()}'"
+                           f" {len(indexes)} записей?")
+        accept_dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        but = accept_dlg.exec()
+
+        if but == QMessageBox.Yes:
+            cur = self.db.cursor()
+            cur.execute(f"DELETE FROM {DATABASE_TABLES[self.table_info.currentText()]}"
+                        f" WHERE {COL_ID_NAME_DATABASE_TABLES[self.table_info.currentText()]} IN "
+                        f" " + "(" + ", ".join(indexes) + ")")
+            self.db.commit()
+            cur.close()
+            self.db.reconnect()
+            self.change_table()
+
+            ok_dlg = QMessageBox(self)
+            ok_dlg.setText(f"Успешно удалено {len(indexes)} записей из таблицы '{self.table_info.currentText()}'")
+            ok_dlg.setStandardButtons(QMessageBox.Ok)
+            ok_dlg.exec()
+
 
 def except_hook(cls, exception, traceback):
     sys.__excepthook__(cls, exception, traceback)
