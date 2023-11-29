@@ -36,7 +36,7 @@ class Main(QMainWindow):
         self.add_conditions_box = QComboBox(self)
         self.add_conditions_box.move(QPoint(200, 70))
         self.add_conditions_box.currentIndexChanged.connect(self.add_items_to_table)
-        self.add_conditions_box.currentIndexChanged.connect(self.add_conditions_line.clear)
+        #self.add_conditions_box.currentIndexChanged.connect(self.add_conditions_line.clear)
 
         self.tableViewer = QTableWidget(self)
         self.tableViewer.move(QPoint(200, 100))
@@ -62,6 +62,7 @@ class Main(QMainWindow):
     def change_table(self):
         if self.isReset:
             self.add_conditions_box.clear()
+            self.add_conditions_line.clear()
 
         cur = self.db.cursor()
         self.last_command = RU_TABLE_DICT_PROCEDURE[self.table_info.currentText()]
@@ -138,6 +139,7 @@ class Main(QMainWindow):
         self.update_table_timer.start()
 
     def update_table(self):
+        self.add_conditions_box.clear()
         self.isReset = False
         self.change_table()
 
