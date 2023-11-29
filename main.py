@@ -1,11 +1,12 @@
 import sys
 
-from PyQt5.QtWidgets import QApplication, QMainWindow, QComboBox, QTableWidget, QTableWidgetItem, QAbstractItemView,\
+from PyQt5.QtWidgets import QApplication, QMainWindow, QComboBox, QTableWidget, QTableWidgetItem, QAbstractItemView, \
     QLineEdit, QPushButton, QInputDialog, QErrorMessage, QMessageBox
 from PyQt5.QtCore import QPoint, QTimer
 
 from database import create_connection
 from const.constants_main import *
+from const.constant_sql_requests import *
 
 
 class Main(QMainWindow):
@@ -36,7 +37,7 @@ class Main(QMainWindow):
         self.add_conditions_box = QComboBox(self)
         self.add_conditions_box.move(QPoint(200, 70))
         self.add_conditions_box.currentIndexChanged.connect(self.add_items_to_table)
-        #self.add_conditions_box.currentIndexChanged.connect(self.add_conditions_line.clear)
+        self.add_conditions_box.currentIndexChanged.connect(self.set_id_row)
 
         self.tableViewer = QTableWidget(self)
         self.tableViewer.move(QPoint(200, 100))
@@ -70,20 +71,24 @@ class Main(QMainWindow):
         self.table_names = [i[0] for i in cur.description]
         self.table_names.append("Доп. инфо.")
         self.data = cur.fetchall()
-
-        self.add_conditions_box.addItems(self.table_names)
-        self.add_items_to_table()
-
         cur.close()
         self.db.reconnect()
+
+        self.add_conditions_box.addItems(self.table_names)
+  #      if not self.isReset:
+ #           self.add_conditions_box.setCurrentIndex(self.id_row)
+        self.add_items_to_table()
+
         self.isReset = True
 
     def add_items_to_table(self):
         self.tableViewer.clear()
         if self.add_conditions_line.text():
-            self.id_row = self.add_conditions_box.currentIndex()
+   #         self.id_row = self.add_conditions_box.currentIndex()
             self.text_row = self.add_conditions_line.text()
-            if self.text_row[-1] == ";":
+            if self.text_row[0] == "=":
+                data = self.filter_request(self.text_row[1:])
+            elif self.text_row[-1] == ";":
                 data = [col for col in self.data if self.text_row[:-1] == str(col[self.id_row])]
             else:
                 data = [col for col in self.data if self.text_row in str(col[self.id_row])]
@@ -139,9 +144,30 @@ class Main(QMainWindow):
         self.update_table_timer.start()
 
     def update_table(self):
+        temp = self.id_row
         self.add_conditions_box.clear()
         self.isReset = False
         self.change_table()
+        self.id_row = temp
+        self.add_conditions_box.setCurrentIndex(self.id_row)
+
+    def filter_request(self, request):
+        cur = self.db.cursor()
+        try:
+            build_request = FILTER_REQUEST[self.table_info.currentText()] + " " \
+                            + COL_NAME_REQUEST[self.table_info.currentText()][self.add_conditions_box.currentIndex()]\
+                            + request
+            cur.execute(build_request)
+            data = cur.fetchall()
+        except Exception:
+            data = self.data
+        finally:
+            cur.close()
+            self.db.reconnect()
+        return data
+
+    def set_id_row(self):
+        self.id_row = self.add_conditions_box.currentIndex()
 
 
 def except_hook(cls, exception, traceback):
