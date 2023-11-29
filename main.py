@@ -75,8 +75,6 @@ class Main(QMainWindow):
         self.db.reconnect()
 
         self.add_conditions_box.addItems(self.table_names)
-  #      if not self.isReset:
- #           self.add_conditions_box.setCurrentIndex(self.id_row)
         self.add_items_to_table()
 
         self.isReset = True
@@ -84,7 +82,6 @@ class Main(QMainWindow):
     def add_items_to_table(self):
         self.tableViewer.clear()
         if self.add_conditions_line.text():
-   #         self.id_row = self.add_conditions_box.currentIndex()
             self.text_row = self.add_conditions_line.text()
             if self.text_row[0] == "=":
                 data = self.filter_request(self.text_row[1:])
