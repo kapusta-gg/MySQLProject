@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QComboBox, QTableWidget, 
 from PyQt5.QtCore import QPoint, QTimer
 
 from database import create_connection
+from objects.buttons import *
 from const.constants_main import *
 from const.constant_sql_requests import *
 
@@ -103,8 +104,7 @@ class Main(QMainWindow):
         self.tableViewer.resizeColumnsToContents()
 
     def add_cell_button(self, i, j):
-        temp_btn = QPushButton("Инфо", self)
-
+        temp_btn = QCellButton("Инфо", self.tableViewer.item(i, 0).text(), self)
         self.tableViewer.setCellWidget(i, j, temp_btn)
 
     def delete_rows(self):
