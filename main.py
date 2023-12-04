@@ -168,7 +168,7 @@ class Main(QMainWindow):
         self.id_row = self.add_conditions_box.currentIndex()
 
     def open_insert_window(self):
-        self.insert_window = INSERT_WINDOWS_DICT[self.table_info.currentText()]()
+        self.insert_window = INSERT_WINDOWS_DICT[self.table_info.currentText()](self.db)
         self.insert_window.exec()
 
 
