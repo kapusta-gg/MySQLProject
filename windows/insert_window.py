@@ -17,6 +17,17 @@ class InsertWindow(QDialog):
         self.setFixedSize(WINDOW_SIZE)
         self.bd = bd
 
+        self.ok_btn = QPushButton("OK", self)
+        self.ok_btn.resize(QSize(60, 40))
+        self.ok_btn.move(QPoint(200, 450))
+        self.ok_btn.setVisible(False)
+        self.ok_btn.clicked.connect(self.insert)
+
+        self.close_btn = QPushButton("Отмена", self)
+        self.close_btn.resize(QSize(60, 40))
+        self.close_btn.move(QPoint(280, 450))
+        self.close_btn.clicked.connect(self.close)
+
     @abstractmethod
     def insert(self):
         pass
@@ -49,17 +60,6 @@ class InsertHumanWindow(InsertWindow):
         self.name_i.textChanged.connect(self.filter_for_names)
         self.surname_i.textChanged.connect(self.filter_for_names)
         self.email_i.textChanged.connect(self.filter_for_email)
-
-        self.ok_btn = QPushButton("OK", self)
-        self.ok_btn.resize(QSize(60, 40))
-        self.ok_btn.move(QPoint(200, 450))
-        self.ok_btn.setVisible(False)
-        self.ok_btn.clicked.connect(self.insert)
-
-        self.close_btn = QPushButton("Отмена", self)
-        self.close_btn.resize(QSize(60, 40))
-        self.close_btn.move(QPoint(280, 450))
-        self.close_btn.clicked.connect(self.close)
 
         self.passport_btn = QPushButton("Добавить паспорт", self)
         self.passport_btn.move(QPoint(30, 80))
@@ -549,17 +549,214 @@ class InsertGroupWindow(InsertWindow):
     def __init__(self, db):
         super().__init__(db)
 
-    def insert(self):
-        self.close()
+        self.courses_l = QLabel("Курс:", self)
+        self.courses_l.move(QPoint(30, 30))
+        self.courses_box = QComboBox(self)
+        self.courses_box.move(QPoint(60, 28))
+        self.fill_courses_box()
 
+        self.teachers_l = QLabel("Преподователь:", self)
+        self.teachers_l.move(QPoint(200, 30))
+        self.teachers_box = QComboBox(self)
+        self.teachers_box.move(QPoint(290, 28))
+        self.fill_teachers_box()
+
+        self.days_l = QLabel("Дни недели:", self)
+        self.days_l.move(QPoint(30, 60))
+        self.deff = QLabel("---", self)
+        self.deff.move(QPoint(200, 60))
+        self.day_one = QComboBox(self)
+        self.day_one.move(QPoint(100, 58))
+        self.day_one.addItems(WEEK_DAYS[:-2])
+        self.day_one.currentIndexChanged.connect(self.fill_second_day)
+        self.day_one.currentIndexChanged.connect(self.check_schedule)
+        self.day_two = QComboBox(self)
+        self.day_two.move(QPoint(220, 58))
+        self.fill_second_day()
+        self.day_two.currentIndexChanged.connect(self.check_schedule)
+
+        self.time_l = QLabel("Время:", self)
+        self.time_l.move(QPoint(30, 90))
+        self.time_box = QComboBox(self)
+        self.time_box.move(QPoint(70, 88))
+        self.time_box.addItems([str(i) for i in range(8, 19)])
+        self.time_box.currentIndexChanged.connect(self.check_schedule)
+
+        self.cabinet_l = QLabel("Кабинет:", self)
+        self.cabinet_l.move(QPoint(140, 90))
+        self.cabinet_box = QComboBox(self)
+        self.cabinet_box.move(QPoint(190, 88))
+        self.cabinet_box.addItems([str(i) for i in range(100, 126)])
+        self.cabinet_box.currentIndexChanged.connect(self.check_schedule)
+        self.cabinet_box.resize(QSize(50, 18))
+
+        self.spots_l = QLabel("Макс. кол-во студентов:", self)
+        self.spots_l.move(QPoint(250, 90))
+        self.spots_box = QComboBox(self)
+        self.spots_box.move(QPoint(380, 88))
+        self.spots_box.addItems([str(i) for i in range(5, 21)])
+        self.spots_box.currentIndexChanged.connect(self.is_visible_add)
+
+        self.check_schedule()
+
+        self.students_l = QLabel("Студенты:", self)
+        self.students_l.move(QPoint(30, 120))
+
+        self.students_box = QComboBox(self)
+        self.students_box.move(QPoint(90, 118))
+        self.fill_students_box()
+
+        self.add_student_btn = QPushButton("Добавить", self)
+        self.add_student_btn.move((QPoint(300, 118)))
+        self.add_student_btn.clicked.connect(self.add_student)
+        self.add_student_btn.clicked.connect(self.is_visible_add)
+
+        self.del_student_btn = QPushButton("Удалить", self)
+        self.del_student_btn.move(QPoint(380, 118))
+        self.del_student_btn.setVisible(False)
+
+        self.students_table = QListWidget(self)
+        self.students_table.move(QPoint(120, 160))
+        self.students_table.itemClicked.connect(self.is_visible_del)
+
+    def add_student(self):
+        student = self.students_box.currentText()
+        self.students_table.addItem(student)
+        self.students_box.removeItem(self.students_box.currentIndex())
+
+    def is_visible_del(self):
+        if self.students_table.count() == 0:
+            self.del_student_btn.setVisible(False)
+        else:
+            self.del_student_btn.setVisible(True)
+
+    def is_visible_add(self):
+        if self.students_table.count() == int(self.spots_box.currentText()):
+            self.add_student_btn.setVisible(False)
+        elif self.students_table.count() > int(self.spots_box.currentText()):
+            self.students_table.clear()
+            self.students_box.clear()
+            self.fill_students_box()
+            self.add_student_btn.setVisible(True)
+        else:
+            self.add_student_btn.setVisible(True)
+
+    def fill_students_box(self):
+        cur = self.bd.cursor()
+        cur.execute("SELECT id_student, name_student, surname_student FROM student WHERE status=1")
+        students = cur.fetchall()
+        cur.close()
+        self.bd.reconnect()
+        self.students_box.addItems([str(i[0]) + ". " + i[1] + " " + i[2] for i in students])
+
+    def fill_second_day(self):
+        self.day_two.clear()
+        ind = self.day_one.currentIndex()
+        self.day_two.addItems(WEEK_DAYS[ind + 1:])
+
+    def fill_courses_box(self):
+        cur = self.bd.cursor()
+        cur.execute("SELECT id_course, name FROM course")
+        courses = cur.fetchall()
+        cur.close()
+        self.bd.reconnect()
+        self.courses_box.addItems([str(i[0]) + ". " + i[1] for i in courses])
+
+    def fill_teachers_box(self):
+        cur = self.bd.cursor()
+        cur.execute("SELECT id_teacher, name_teacher, surname_teacher FROM teacher")
+        teachers = cur.fetchall()
+        cur.close()
+        self.bd.reconnect()
+        self.teachers_box.addItems([str(i[0]) + ". " + i[1] + " " + i[2] for i in teachers])
+
+    def check_schedule(self):
+        cur = self.bd.cursor()
+        cur.execute(f"SELECT id_date_lessons FROM lessonsday WHERE cabinet={self.cabinet_box.currentText()}"
+                    f" AND date_lessons='{self.day_one.currentText()}-{self.day_two.currentText()}'"
+                    f" AND time_lessons=TIME('{self.time_box.currentText()}:00:00')")
+        if cur.fetchall():
+            self.cabinet_box.setStyleSheet("border :1px solid ; border-color : red;")
+            self.time_box.setStyleSheet("border :1px solid ; border-color : red;")
+            self.day_one.setStyleSheet("border :1px solid ; border-color : red;")
+            self.day_two.setStyleSheet("border :1px solid ; border-color : red;")
+            self.ok_btn.setVisible(False)
+        else:
+            self.cabinet_box.setStyleSheet("border :1px solid ; border-color : green;")
+            self.time_box.setStyleSheet("border :1px solid ; border-color : green;")
+            self.day_one.setStyleSheet("border :1px solid ; border-color : green;")
+            self.day_two.setStyleSheet("border :1px solid ; border-color : green;")
+            self.ok_btn.setVisible(True)
+        cur.close()
+        self.bd.reconnect()
+
+    def insert(self):
+        accept_dlg = QMessageBox(self)
+        accept_dlg.setWindowTitle("Подтверждение")
+        accept_dlg.setText("Сохранить запись?")
+        accept_dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        but = accept_dlg.exec()
+
+        if but == QMessageBox.Yes:
+            cur = self.bd.cursor()
+            cur.execute(f"INSERT INTO lessonsday (cabinet, date_lessons, time_lessons)"
+                        f" VALUES ({self.cabinet_box.currentText()},"
+                        f" '{self.day_one.currentText()}-{self.day_two.currentText()}',"
+                        f" TIME('{self.time_box.currentText()}:00:00'))")
+            self.bd.commit()
+            cur.close()
+            self.bd.reconnect()
+
+            cur = self.bd.cursor()
+            cur.execute(f"SELECT id_date_lessons FROM lessonsday WHERE cabinet={self.cabinet_box.currentText()}"
+                        f" AND date_lessons='{self.day_one.currentText()}-{self.day_two.currentText()}'"
+                        f" AND time_lessons=TIME('{self.time_box.currentText()}:00:00')")
+            id_date = cur.fetchall()[0][0]
+            cur.close()
+            self.bd.reconnect()
+
+            cur = self.bd.cursor()
+            cur.execute(f"INSERT INTO studygroup (max_students_in_group, id_date_lessons)"
+                        f" VALUES ({self.spots_box.currentText()}, {id_date})")
+            self.bd.commit()
+            cur.close()
+            self.bd.reconnect()
+
+            cur = self.bd.cursor()
+            cur.execute(f"SELECT id_group FROM studygroup WHERE id_date_lessons={id_date}")
+            id_group = cur.fetchall()[0][0]
+            cur.close()
+            self.bd.reconnect()
+
+            cur = self.bd.cursor()
+            cur.execute(f"INSERT INTO groupteacher (id_group, id_teacher, id_course)"
+                        f" VALUES ({id_group}, {self.teachers_box.currentText().split('.')[0]},"
+                        f" {self.courses_box.currentText().split('.')[0]})")
+            self.bd.commit()
+            cur.close()
+            self.bd.reconnect()
+
+            for i in range(self.students_table.count()):
+                id_student = self.students_table.item(i).text().split('.')[0]
+                cur = self.bd.cursor()
+                cur.execute(f"INSERT INTO studentgroup (id_group, id_student)"
+                            f" VALUES ({id_group}, {id_student})")
+                self.bd.commit()
+                cur.close()
+                self.bd.reconnect()
+            ok_window = QMessageBox(self)
+            ok_window.setText("Запись успешно создана")
+            ok_window.setStandardButtons(QMessageBox.Ok)
+            self.close()
 
 def except_hook(cls, exception, traceback):
     sys.__excepthook__(cls, exception, traceback)
 
 
 if __name__ == "__main__":
+    from database import create_connection
     app = QApplication(sys.argv)
-    ex = InsertStudentWindow()
+    ex = InsertGroupWindow(create_connection())
     ex.show()
     sys.excepthook = except_hook
     app.exec()
