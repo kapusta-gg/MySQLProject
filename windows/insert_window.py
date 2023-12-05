@@ -1,9 +1,10 @@
 import sys
 import re
 import datetime
+import pprint  # TODO: удалить в конце
 
 from PyQt5.QtWidgets import QDialog, QLabel, QLineEdit, QPushButton, QComboBox, QListWidget, QDateEdit, QApplication, \
-    QMessageBox
+    QMessageBox, QTextEdit, QFileDialog
 from PyQt5.Qt import QPoint
 from abc import abstractmethod
 
@@ -330,8 +331,8 @@ class InsertStudentWindow(InsertHumanWindow):
                 cur.execute(f"INSERT INTO studentpasport (series, number, division_code, date_of_issue,"
                             f" authorized_agency, date_of_birthday) VALUES ('{self.passport_dict['series']}',"
                             f" '{self.passport_dict['number']}', '{self.passport_dict['division_code']}',"
-                             f" '{self.passport_dict['date_of_issue']}', '{self.passport_dict['authorized_agency']}',"
-                             f" '{self.passport_dict['date_of_birthday']}')")
+                            f" '{self.passport_dict['date_of_issue']}', '{self.passport_dict['authorized_agency']}',"
+                            f" '{self.passport_dict['date_of_birthday']}')")
                 self.bd.commit()
                 cur.close()
                 self.bd.reconnect()
@@ -353,9 +354,9 @@ class InsertStudentWindow(InsertHumanWindow):
                 cur = self.bd.cursor()
                 cur.execute(f"SELECT id_certificate FROM studentbirthcertificate "
                             f"WHERE date_of_issue='{self.birth_dict['date_of_issue']}' AND"
-                         f" registration_place='{self.birth_dict['registration_place']}' AND"
-                         f" authorized_agency='{self.birth_dict['authorized_agency']}' AND"
-                         f" date_of_birthday='{self.birth_dict['date_of_birthday']}'")
+                            f" registration_place='{self.birth_dict['registration_place']}' AND"
+                            f" authorized_agency='{self.birth_dict['authorized_agency']}' AND"
+                            f" date_of_birthday='{self.birth_dict['date_of_birthday']}'")
                 id_birth = cur.fetchall()[0][0]
                 cur.close()
                 self.bd.reconnect()
@@ -918,6 +919,7 @@ class InsertTeacherWindow(InsertHumanWindow):
             ok_window = QMessageBox(self)
             ok_window.setText("Запись успешно создана")
             ok_window.setStandardButtons(QMessageBox.Ok)
+            ok_window.exec()
             self.close()
 
 
@@ -925,8 +927,171 @@ class InsertCourseWindow(InsertWindow):
     def __init__(self, db):
         super().__init__(db)
 
+        self.structure = {}
+        self.counter = 0
+
+        self.is_name = self.is_description = False
+
+        self.name_l = QLabel("Навзвание:", self)
+        self.name_l.move(QPoint(30, 30))
+        self.name_i = QLineEdit(self)
+        self.name_i.move(QPoint(100, 28))
+        self.name_i.resize(QSize(360, 20))
+        self.name_i.setMaxLength(50)
+        self.name_i.textChanged.connect(self.check_all)
+
+        self.duration_l = QLabel("Длительность:(лет)", self)
+        self.duration_l.move(QPoint(30, 55))
+        self.duration_box = QComboBox(self)
+        self.duration_box.move(QPoint(140, 50))
+        self.duration_box.addItems([str(i) for i in range(1, 4)])
+
+        self.complexity_l = QLabel("Сложность:", self)
+        self.complexity_l.move(QPoint(180, 55))
+        self.complexity_box = QComboBox(self)
+        self.complexity_box.move(QPoint(250, 50))
+        self.complexity_box.addItems([str(i) for i in range(1, 6)])
+
+        self.description_l = QLabel("Описание:", self)
+        self.description_l.move(QPoint(30, 80))
+        self.description_i = QTextEdit(self)
+        self.description_i.move(QPoint(30, 100))
+        self.description_i.resize(QSize(440, 100))
+        self.description_i.textChanged.connect(self.check_all)
+
+        self.blocks_l = QLabel("Структура курса:", self)
+        self.blocks_l.move(QPoint(30, 220))
+
+        self.add_block_btn = QPushButton("Добавить", self)
+        self.add_block_btn.move(QPoint(160, 218))
+        self.add_block_btn.clicked.connect(self.add_block)
+        self.del_block_btn = QPushButton("Удалить", self)
+        self.del_block_btn.move(QPoint(260, 218))
+        self.del_block_btn.clicked.connect(self.del_block)
+        self.del_block_btn.setVisible(False)
+
+        self.blocks_list = QListWidget(self)
+        self.blocks_list.move(QPoint(30, 250))
+        self.blocks_list.resize(QSize(440, 200))
+        self.blocks_list.itemClicked.connect(self.set_visible)
+
+    def set_visible(self):
+        self.del_block_btn.setVisible(True)
+
+    def add_block(self):
+        self.block = InsertBlock(self.bd)
+        self.block.exec()
+        if self.block.is_add:
+            self.counter += 1
+            self.structure[self.counter] = self.block.structure
+            self.blocks_list.addItem(self.block.structure["name"])
+
+    def del_block(self):
+        ind = self.blocks_list.currentRow() + 1
+        self.blocks_list.takeItem(self.blocks_list.currentRow())
+        del self.structure[ind]
+        self.counter -= 1
+        temp = list(self.structure.values())
+        self.structure = {ind + 1: v for ind, v in enumerate(temp)}
+        self.del_block_btn.setVisible(False)
+
+    def check_all(self):
+        if self.name_i.text():
+            self.is_name = True
+        else:
+            self.is_name = False
+        if self.description_i.toPlainText():
+            self.is_description = True
+        else:
+            self.is_description = False
+        if self.is_name and self.is_description:
+            self.ok_btn.setVisible(True)
+        else:
+            self.ok_btn.setVisible(False)
+
     def insert(self):
-        self.close()
+        accept_dlg = QMessageBox(self)
+        accept_dlg.setWindowTitle("Подтверждение")
+        accept_dlg.setText("Сохранить запись?")
+        accept_dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        but = accept_dlg.exec()
+
+        if but == QMessageBox.Yes:
+
+            cur = self.bd.cursor()
+            cur.execute(f"INSERT INTO course (name, description, duration, complexity) VALUES"
+                        f" ('{self.name_i.text()}', '{self.description_i.toPlainText()}',"
+                        f" {self.duration_box.currentText()}, {self.complexity_box.currentText()});")
+            cur.execute("SELECT last_insert_id();")
+            ind_c = cur.fetchall()[0][0]
+            self.bd.commit()
+            cur.close()
+            self.bd.reconnect()
+
+            for order, block in self.structure.items():
+                cur = self.bd.cursor()
+                cur.execute(f"INSERT INTO block (name, id_block_type) VALUES ('{block['name']}', {block['type']});")
+                cur.execute(f"SELECT last_insert_id()")
+                ind_b = cur.fetchall()[0][0]
+                self.bd.commit()
+                cur.close()
+                self.bd.reconnect()
+
+                cur = self.bd.cursor()
+                cur.execute(f"INSERT INTO blockcourse (id_block, id_course, order_of_arragment)"
+                            f" VALUES ({ind_b}, {ind_c}, {order})")
+                self.bd.commit()
+                cur.close()
+                self.bd.reconnect()
+
+                if block["material"]:
+                    self.materials_request(block["material"], ind_b)
+                if block["task"]:
+                    self.tasks_request(block["task"], ind_b)
+
+
+            ok_dlg = QMessageBox(self)
+            ok_dlg.setText("Запись успешно создана")
+            ok_dlg.setStandardButtons(QMessageBox.Ok)
+            ok_dlg.exec()
+            self.close()
+
+    def materials_request(self, materials, block_id):
+        for order, material in materials.items():
+            cur = self.bd.cursor()
+            cur.execute(f"INSERT INTO material (name, content) "
+                        f"VALUES ('{material['name']}', '{material['path']}');")
+            cur.execute(f"SELECT last_insert_id()")
+            ind = cur.fetchall()[0][0]
+            self.bd.commit()
+            cur.close()
+            self.bd.reconnect()
+
+            cur = self.bd.cursor()
+            cur.execute(f"INSERT INTO blockmaterial (id_block, id_material, order_of_arragment)"
+                        f" VALUES ({block_id}, {ind}, {order})")
+            self.bd.commit()
+            cur.close()
+            self.bd.reconnect()
+
+    def tasks_request(self, tasks, block_id):
+        for order, task in tasks.items():
+            cur = self.bd.cursor()
+            cur.execute(f"INSERT INTO task (name, description, solution, max_score, id_task_type) "
+                        f"VALUES ('{task['name']}', '{task['description']}',"
+                        f" '{task['path']}', {task['max_score']}, {task['id_task_type']});")
+            cur.execute(f"SELECT last_insert_id()")
+            ind = cur.fetchall()[0][0]
+            self.bd.commit()
+            cur.close()
+            self.bd.reconnect()
+
+            cur = self.bd.cursor()
+            cur.execute(f"INSERT INTO taskblock (id_block, id_task, order_of_arragment)"
+                        f" VALUES ({block_id}, {ind}, {order})")
+            self.bd.commit()
+            cur.close()
+            self.bd.reconnect()
 
 
 class InsertGroupWindow(InsertWindow):
@@ -998,10 +1163,17 @@ class InsertGroupWindow(InsertWindow):
         self.del_student_btn = QPushButton("Удалить", self)
         self.del_student_btn.move(QPoint(380, 118))
         self.del_student_btn.setVisible(False)
+        self.del_student_btn.clicked.connect(self.del_student)
 
         self.students_table = QListWidget(self)
         self.students_table.move(QPoint(120, 160))
         self.students_table.itemClicked.connect(self.is_visible_del)
+
+    def del_student(self):
+        student = self.students_table.takeItem(self.students_table.currentRow())
+        self.students_box.clear()
+        self.fill_students_box()
+        self.del_student_btn.setVisible(False)
 
     def add_student(self):
         student = self.students_box.currentText()
@@ -1131,6 +1303,320 @@ class InsertGroupWindow(InsertWindow):
             ok_window = QMessageBox(self)
             ok_window.setText("Запись успешно создана")
             ok_window.setStandardButtons(QMessageBox.Ok)
+            ok_window.exec()
+            self.close()
+
+
+class InsertBlock(InsertWindow):
+    def __init__(self, db):
+        super().__init__(db)
+
+        self.is_add = False
+
+        self.structure = {"name": None,
+                          "type": None,
+                          "task": {},
+                          "material": {}}
+        self.counter_material = 0
+        self.counter_task = 0
+        self.is_name = False
+
+        self.name_l = QLabel("Название:", self)
+        self.name_l.move(QPoint(30, 30))
+        self.name_i = QLineEdit(self)
+        self.name_i.move(QPoint(90, 28))
+        self.name_i.resize(QSize(380, 20))
+        self.name_i.setMaxLength(100)
+        self.name_i.textChanged.connect(self.check_name)
+
+        self.type_l = QLabel("Тип:", self)
+        self.type_l.move(QPoint(30, 60))
+        self.type_box = QComboBox(self)
+        self.type_box.move(QPoint(60, 58))
+        self.fill_type_box()
+
+        self.task_i = QLabel("Задания:", self)
+        self.task_i.move(QPoint(30, 90))
+
+        self.task_add_btn = QPushButton("Добавить", self)
+        self.task_add_btn.move(QPoint(30, 120))
+        self.task_add_btn.clicked.connect(self.add_obj)
+
+        self.task_del_btn = QPushButton("Удалить", self)
+        self.task_del_btn.move(QPoint(130, 120))
+        self.task_del_btn.setVisible(False)
+        self.task_del_btn.clicked.connect(self.del_obj)
+
+        self.task_list = QListWidget(self)
+        self.task_list.move(QPoint(30, 150))
+        self.task_list.resize(QSize(210, 280))
+        self.task_list.itemClicked.connect(self.set_visible)
+
+        self.material_i = QLabel("Материалы:", self)
+        self.material_i.move(QPoint(250, 90))
+
+        self.material_add_btn = QPushButton("Добавить", self)
+        self.material_add_btn.move(QPoint(250, 120))
+        self.material_add_btn.clicked.connect(self.add_obj)
+
+        self.material_del_btn = QPushButton("Удалить", self)
+        self.material_del_btn.move(QPoint(350, 120))
+        self.material_del_btn.setVisible(False)
+        self.material_del_btn.clicked.connect(self.del_obj)
+
+        self.material_list = QListWidget(self)
+        self.material_list.move(QPoint(250, 150))
+        self.material_list.resize(QSize(210, 280))
+        self.material_list.itemClicked.connect(self.set_visible)
+
+    def add_obj(self):
+        if self.sender() == self.material_add_btn:
+            self.material = InsertMaterial(self.bd)
+        else:
+            self.material = InsertTask(self.bd)
+        self.material.exec()
+        if self.material.is_add:
+            if self.sender() == self.material_add_btn:
+                self.counter_material += 1
+                self.structure["material"][self.counter_material] = self.material.structure
+                self.material_list.addItem(self.material.structure["name"])
+            else:
+                self.counter_task += 1
+                self.structure["task"][self.counter_task] = self.material.structure
+                self.task_list.addItem(self.material.structure["name"])
+
+    def del_obj(self):
+        if self.sender() == self.material_del_btn:
+            ind = self.material_list.currentRow() + 1
+            self.material_list.takeItem(self.material_list.currentRow())
+            del self.structure["material"][ind]
+            self.counter_material -= 1
+            temp = list(self.structure["material"].values())
+            self.structure["material"] = {ind + 1: v for ind, v in enumerate(temp)}
+            self.material_del_btn.setVisible(False)
+        else:
+            ind = self.task_list.currentRow() + 1
+            self.task_list.takeItem(self.task_list.currentRow())
+            del self.structure["task"][ind]
+            self.counter_task -= 1
+            temp = list(self.structure["task"].values())
+            self.structure["task"] = {ind + 1: v for ind, v in enumerate(temp)}
+            self.task_del_btn.setVisible(False)
+
+    def set_visible(self):
+        if self.sender() == self.material_list:
+            self.material_del_btn.setVisible(True)
+        else:
+            self.task_del_btn.setVisible(True)
+
+    def check_name(self):
+        if self.name_i.text():
+            self.ok_btn.setVisible(True)
+        else:
+            self.ok_btn.setVisible(False)
+
+    def fill_type_box(self):
+        cur = self.bd.cursor()
+        cur.execute("SELECT block_type FROM blocktype")
+        data = [i[0] for i in cur.fetchall()]
+        cur.close()
+        self.bd.reconnect()
+        self.type_box.addItems(data)
+
+    def insert(self):
+        accept_dlg = QMessageBox(self)
+        accept_dlg.setWindowTitle("Подтверждение")
+        accept_dlg.setText("Сохранить запись?")
+        accept_dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        but = accept_dlg.exec()
+
+        if but == QMessageBox.Yes:
+            self.is_add = True
+            self.structure["name"] = self.name_i.text()
+            self.structure["type"] = self.type_box.currentIndex() + 1
+            self.close()
+
+
+class InsertTask(InsertWindow):
+    def __init__(self, bd):
+        super().__init__(bd)
+
+        self.is_add = False
+        self.structure = {"name": None,
+                          "path": None,
+                          "description": None,
+                          "max_score": "10",
+                          "id_task_type": None}
+
+        self.name_l = QLabel("Название:", self)
+        self.name_l.move(QPoint(30, 30))
+        self.name_i = QLineEdit(self)
+        self.name_i.move(QPoint(90, 28))
+        self.name_i.resize(QSize(380, 20))
+        self.name_i.setMaxLength(100)
+        self.name_i.textChanged.connect(self.check_name)
+        self.name_i.textChanged.connect(self.check_all)
+
+        self.content_i = QLabel("Решение:", self)
+        self.content_i.move(QPoint(30, 60))
+
+        self.add_content_btn = QPushButton("Добавить", self)
+        self.add_content_btn.move(QPoint(90, 55))
+        self.add_content_btn.clicked.connect(self.add_content)
+
+        self.del_content_btn = QPushButton("Удалить", self)
+        self.del_content_btn.move(QPoint(180, 55))
+        self.del_content_btn.setVisible(False)
+        self.del_content_btn.clicked.connect(self.del_content)
+
+        self.type_i = QLabel("Тип:", self)
+        self.type_i.move(QPoint(260, 60))
+        self.type_box = QComboBox(self)
+        self.type_box.move(QPoint(290, 55))
+        self.type_box.currentTextChanged.connect(self.select_type)
+
+        self.fill_type_box()
+        self.select_type()
+
+        self.scores_i = QLabel("Макс. кол-во баллов:", self)
+        self.scores_i.move(QPoint(30, 90))
+        self.scores_l = QLineEdit("10", self)
+        self.scores_l.move(QPoint(150, 85))
+        self.scores_l.textChanged.connect(self.filter_scores)
+
+        self.desc_i = QLabel("Описание:", self)
+        self.desc_i.move(QPoint(30, 120))
+        self.desc_l = QTextEdit(self)
+        self.desc_l.move(QPoint(30, 150))
+        self.desc_l.resize(QSize(440, 280))
+        self.desc_l.textChanged.connect(self.check_desc)
+
+    def filter_scores(self):
+        text = self.scores_l.text()
+        text = re.findall(r"[0-9]{1,3}", text)
+        if text:
+            if 10 <= int(text[0]) <= 100:
+                self.scores_l.setStyleSheet("border :1px solid ; border-color : green;")
+                self.structure["max_score"] = text[0]
+            else:
+                self.scores_l.setStyleSheet("border :1px solid ; border-color : red;")
+                self.structure["max_score"] = None
+            self.scores_l.setText(text[0])
+        else:
+            self.scores_l.setStyleSheet("border :1px solid ; border-color : red;")
+            self.structure["max_score"] = None
+        self.check_all()
+
+    def fill_type_box(self):
+        cur = self.bd.cursor()
+        cur.execute("SELECT task_type FROM tasktype")
+        data = [i[0] for i in cur.fetchall()]
+        cur.close()
+        self.bd.reconnect()
+        self.type_box.addItems(data)
+
+    def select_type(self):
+        self.structure["id_task_type"] = str(self.type_box.currentIndex() + 1)
+
+    def add_content(self):
+        filename = QFileDialog.getOpenFileName(self)
+        self.structure["path"] = filename[0]
+        self.del_content_btn.setVisible(True)
+        self.check_all()
+
+    def del_content(self):
+        self.structure["path"] = None
+        self.del_content_btn.setVisible(False)
+        self.check_all()
+
+    def check_desc(self):
+        if self.desc_l.toPlainText():
+            self.structure["description"] = self.desc_l.toPlainText()
+        else:
+            self.structure["description"] = None
+        self.check_all()
+
+    def check_name(self):
+        if self.name_i.text():
+            self.structure["name"] = self.name_i.text()
+
+    def check_all(self):
+        if all(v is not None for v in self.structure.values()):
+            self.ok_btn.setVisible(True)
+        else:
+            self.ok_btn.setVisible(False)
+
+    def insert(self):
+        accept_dlg = QMessageBox(self)
+        accept_dlg.setWindowTitle("Подтверждение")
+        accept_dlg.setText("Сохранить запись?")
+        accept_dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        but = accept_dlg.exec()
+
+        if but == QMessageBox.Yes:
+            self.is_add = True
+            self.close()
+
+
+class InsertMaterial(InsertWindow):
+    def __init__(self, bd):
+        super().__init__(bd)
+
+        self.is_add = False
+        self.structure = {"name": None,
+                          "path": None}
+
+        self.name_l = QLabel("Название:", self)
+        self.name_l.move(QPoint(30, 30))
+        self.name_i = QLineEdit(self)
+        self.name_i.move(QPoint(90, 28))
+        self.name_i.resize(QSize(380, 20))
+        self.name_i.setMaxLength(100)
+        self.name_i.textChanged.connect(self.check_name)
+        self.name_i.textChanged.connect(self.check_all)
+
+        self.content_i = QLabel("Контент:", self)
+        self.content_i.move(QPoint(30, 60))
+
+        self.add_content_btn = QPushButton("Добавить", self)
+        self.add_content_btn.move(QPoint(90, 55))
+        self.add_content_btn.clicked.connect(self.add_content)
+
+        self.del_content_btn = QPushButton("Удалить", self)
+        self.del_content_btn.move(QPoint(180, 55))
+        self.del_content_btn.setVisible(False)
+        self.del_content_btn.clicked.connect(self.del_content)
+
+    def add_content(self):
+        filename = QFileDialog.getOpenFileName(self)
+        self.structure["path"] = filename[0]
+        self.del_content_btn.setVisible(True)
+        self.check_all()
+
+    def del_content(self):
+        self.structure["path"] = None
+        self.del_content_btn.setVisible(False)
+        self.check_all()
+
+    def check_name(self):
+        if self.name_i.text():
+            self.structure["name"] = self.name_i.text()
+
+    def check_all(self):
+        if self.structure["name"] is not None and self.structure["path"] is not None:
+            self.ok_btn.setVisible(True)
+        else:
+            self.ok_btn.setVisible(False)
+
+    def insert(self):
+        accept_dlg = QMessageBox(self)
+        accept_dlg.setWindowTitle("Подтверждение")
+        accept_dlg.setText("Сохранить запись?")
+        accept_dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        but = accept_dlg.exec()
+
+        if but == QMessageBox.Yes:
+            self.is_add = True
             self.close()
 
 
@@ -1138,10 +1624,12 @@ def except_hook(cls, exception, traceback):
     sys.__excepthook__(cls, exception, traceback)
 
 
+# TODO: удалить в конце
 if __name__ == "__main__":
     from database import create_connection
+
     app = QApplication(sys.argv)
-    ex = InsertTeacherWindow(create_connection())
+    ex = InsertCourseWindow(create_connection())
     ex.show()
     sys.excepthook = except_hook
     app.exec()
