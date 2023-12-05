@@ -77,7 +77,6 @@ class InsertHumanWindow(InsertWindow):
     def open_passport_window(self):
         pass
 
-    @abstractmethod
     def set_visible_remove_btn(self):
         pass
 
@@ -95,142 +94,6 @@ class InsertHumanWindow(InsertWindow):
             self.is_name = self.is_surname = False
         if self.name_i.text() and self.surname_i.text():
             self.set_visible_btn()
-
-    def set_visible_btn(self):
-        if self.name_i.text() and self.surname_i.text():
-            is_visible = True
-        else:
-            is_visible = False
-        self.passport_btn.setVisible(is_visible)
-        self.birth_btn.setVisible(is_visible)
-
-    class InsertPassport(QDialog):
-        def __init__(self, birthday):
-            self.birthday = birthday
-            super().__init__()
-            self.check1 = self.check2 = self.check3 = self.check4 = self.check5 = False
-            self.setFixedSize(DOC_WINDOW_SIZE)
-            self.series_l = QLabel("Серия:", self)
-            self.series_l.move(QPoint(30, 30))
-            self.series_i = QLineEdit(self)
-            self.series_i.resize(QSize(100, 20))
-            self.series_i.move(QPoint(70, 30))
-            self.series_i.textChanged.connect(self.check_series)
-            self.series_i.textChanged.connect(self.check_all)
-
-            self.num_l = QLabel("Номер:", self)
-            self.num_l.move(QPoint(180, 30))
-            self.num_i = QLineEdit(self)
-            self.num_i.resize(QSize(100, 20))
-            self.num_i.move(QPoint(220, 30))
-            self.num_i.textChanged.connect(self.check_code_and_num)
-            self.num_i.textChanged.connect(self.check_all)
-
-            self.code_l = QLabel("Код подразделения:", self)
-            self.code_l.move(QPoint(30, 50))
-            self.code_i = QLineEdit(self)
-            self.code_i.resize(QSize(100, 20))
-            self.code_i.move(QPoint(140, 50))
-            self.code_i.textChanged.connect(self.check_code_and_num)
-            self.code_i.textChanged.connect(self.check_all)
-
-            self.agency_l = QLabel("Структурное подразделение:", self)
-            self.agency_l.move(QPoint(30, 80))
-            self.agency_i = QLineEdit(self)
-            self.agency_i.resize(QSize(250, 20))
-            self.agency_i.move(QPoint(190, 80))
-            self.agency_i.textChanged.connect(self.check_agency)
-            self.agency_i.textChanged.connect(self.check_all)
-
-            self.birth_l = QLabel("Дата рождения:", self)
-            self.birth_l.move(QPoint(30, 110))
-            self.birth_i = QDateEdit(self)
-            self.birth_i.move(QPoint(120, 110))
-            self.birth_i.dateChanged.connect(self.check_date)
-            self.birth_i.dateChanged.connect(self.check_all)
-
-            self.issue_l = QLabel("Дата выдачи:", self)
-            self.issue_l.move(QPoint(210, 110))
-            self.issue_i = QDateEdit(self)
-            self.issue_i.move(QPoint(290, 110))
-            self.issue_i.dateChanged.connect(self.check_date)
-            self.issue_i.dateChanged.connect(self.check_all)
-
-            self.ok_btn = QPushButton("OK", self)
-            self.ok_btn.resize(QSize(60, 40))
-            self.ok_btn.move(QPoint(200, 250))
-            self.ok_btn.setVisible(False)
-            self.ok_btn.clicked.connect(self.add)
-
-            self.close_btn = QPushButton("Отмена", self)
-            self.close_btn.resize(QSize(60, 40))
-            self.close_btn.move(QPoint(280, 250))
-            self.close_btn.clicked.connect(self.close)
-
-        def add(self):
-            accept_dlg = QMessageBox(self)
-            accept_dlg.setWindowTitle("Подтверждение")
-            accept_dlg.setText("Сохранить запись?")
-            accept_dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-            but = accept_dlg.exec()
-
-            if but == QMessageBox.Yes:
-                self.close()
-
-        def check_series(self):
-            text = self.series_i.text()[:4]
-            text = re.findall(r"[0-9]{4}", text)
-            if text:
-                self.series_i.setText(text[0])
-                self.sender().setStyleSheet("border :1px solid ; border-color : green;")
-                self.check1 = True
-            else:
-                self.series_i.setStyleSheet("border :1px solid ; border-color : red;")
-                self.check1 = False
-
-        def check_code_and_num(self):
-            text = self.sender().text()[:6]
-            text = re.findall(r"[0-9]{6}", text)
-            if text:
-                self.sender().setText(text[0])
-                self.sender().setStyleSheet("border :1px solid ; border-color : green;")
-                self.check2 = True
-                if self.check2:
-                    self.check3 = True
-            else:
-                self.sender().setStyleSheet("border :1px solid ; border-color : red;")
-                self.check2 = False
-                self.check3 = False
-
-        def check_agency(self):
-            text = "".join(re.findall(r"[а-яА-Я ]", self.agency_i.text()))
-            if text:
-                self.check4 = True
-            else:
-                self.check4 = False
-            self.agency_i.setText(text)
-
-        def check_all(self):
-            if self.check1 and self.check2 and self.check3 and self.check4 and self.check5:
-                self.ok_btn.setVisible(True)
-            else:
-                self.ok_btn.setVisible(False)
-
-        def check_date(self):
-            if self.birthday is not None and self.birthday != self.birth_i.date():
-                self.update_date_windows(False, "red")
-            elif self.birth_i.date().year() > self.issue_i.date().year() \
-                    or self.issue_i.date().year() - self.birth_i.date().year() != 14:
-                self.update_date_windows(False, "red")
-            elif datetime.datetime.now().year - 18 > self.birth_i.date().year():
-                self.update_date_windows(False, "red")
-            else:
-                self.update_date_windows(True, "green")
-
-        def update_date_windows(self, is_ok, color):
-            self.check5 = is_ok
-            self.birth_i.setStyleSheet(f"border :1px solid ; border-color : {color};")
-            self.issue_i.setStyleSheet(f"border :1px solid ; border-color : {color};")
 
     class InsertBirthCertificate(QDialog):
         def __init__(self, birthday):
@@ -327,10 +190,86 @@ class InsertHumanWindow(InsertWindow):
             self.birth_i.setStyleSheet(f"border :1px solid ; border-color : {color};")
             self.issue_i.setStyleSheet(f"border :1px solid ; border-color : {color};")
 
+    class InsertMedCard(QDialog):
+        def __init__(self, medcards, birthday):
+            super().__init__()
+
+            self.birthday_year = birthday
+            self.medcards = medcards
+
+            self.is_date = self.is_num = False
+
+            self.setFixedSize(QSize(300, 200))
+            self.date_l = QLabel("Дата получения:", self)
+            self.date_l.move(QPoint(30, 30))
+            self.date_i = QDateEdit(self)
+            self.date_i.move(QPoint(120, 28))
+            self.date_i.dateChanged.connect(self.filter_medcard_date)
+            self.date_i.dateChanged.connect(self.check_bools)
+
+            self.num_l = QLabel("Номер мед. книжки:", self)
+            self.num_l.move(QPoint(30, 60))
+            self.num_i = QLineEdit(self)
+            self.num_i.move(QPoint(140, 60))
+            self.num_i.textChanged.connect(self.filter_medcard_num)
+            self.num_i.textChanged.connect(self.check_bools)
+
+            self.ok_btn = QPushButton("OK", self)
+            self.ok_btn.move(QPoint(60, 160))
+            self.ok_btn.setVisible(False)
+            self.ok_btn.clicked.connect(self.check)
+
+            self.close_btn = QPushButton("Отмена", self)
+            self.close_btn.move(QPoint(160, 160))
+            self.close_btn.clicked.connect(self.close_w)
+
+        def filter_medcard_num(self):
+            text = re.findall(r"[0-9]{7}", self.num_i.text())
+            if text:
+                self.num_i.setText(text[0])
+                if text[0] in self.medcards:
+                    self.num_i.setStyleSheet("border :1px solid ; border-color : red;")
+                    self.is_num = False
+                else:
+                    self.num_i.setStyleSheet("border :1px solid ; border-color : green;")
+                    self.is_num = True
+
+        def filter_medcard_date(self):
+            if self.date_i.date().year() - self.birthday_year < 18:
+                self.date_i.setStyleSheet("border :1px solid ; border-color : red;")
+                self.is_date = False
+            else:
+                self.date_i.setStyleSheet("border :1px solid ; border-color : green;")
+                self.is_date = True
+
+        def check_bools(self):
+            if self.is_num and self.is_date:
+                self.ok_btn.setVisible(True)
+
+        def close_w(self):
+            self.is_date = self.is_num = False
+            self.close()
+
+        def check(self):
+            accept_dlg = QMessageBox(self)
+            accept_dlg.setWindowTitle("Подтверждение")
+            accept_dlg.setText("Сохранить запись?")
+            accept_dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            but = accept_dlg.exec()
+
+            if but == QMessageBox.Yes:
+                self.close()
+
 
 class InsertStudentWindow(InsertHumanWindow):
     def __init__(self, bd):
         super().__init__(bd)
+
+        cur = self.bd.cursor()
+        cur.execute("SELECT series, number FROM studentpasport")
+        self.passports = [i[0] + i[1] for i in cur.fetchall()]
+        cur.close()
+        self.bd.reconnect()
 
         self.is_birth = False
         self.birthday = None
@@ -369,6 +308,14 @@ class InsertStudentWindow(InsertHumanWindow):
     def set_visible_final_btn(self):
         if self.is_name and self.is_surname and self.is_email:
             self.ok_btn.setVisible(True)
+
+    def set_visible_btn(self):
+        if self.name_i.text() and self.surname_i.text():
+            is_visible = True
+        else:
+            is_visible = False
+        self.passport_btn.setVisible(is_visible)
+        self.birth_btn.setVisible(is_visible)
 
     def insert(self):
         accept_dlg = QMessageBox(self)
@@ -480,7 +427,7 @@ class InsertStudentWindow(InsertHumanWindow):
             self.close()
 
     def open_passport_window(self):
-        self.window = self.InsertPassport(self.birthday)
+        self.window = self.InsertPassport(self.birthday, self.passports)
         self.window.exec()
         temp = self.window
         if temp.check1 and temp.check2 and temp.check3 and temp.check4 and temp.check5:
@@ -490,8 +437,8 @@ class InsertStudentWindow(InsertHumanWindow):
             if self.birthday is None:
                 self.birthday = temp.birth_i.date()
             self.passport_dict = {"series": temp.series_i.text(), "number": temp.num_i.text(),
-                                  "division_code": temp.code_i.text(), "date_of_issue": birth_date,
-                                  "authorized_agency": temp.agency_i.text(), "date_of_birthday": issue_date}
+                                  "division_code": temp.code_i.text(), "date_of_birthday": birth_date,
+                                  "authorized_agency": temp.agency_i.text(), "date_of_issue": issue_date}
             self.passport_btn.setStyleSheet("border :1px solid ; border-color : green;")
             self.passport_btn.setEnabled(False)
 
@@ -528,13 +475,450 @@ class InsertStudentWindow(InsertHumanWindow):
         self.groups_box.addItem(group.text())
         self.del_group_btn.setVisible(False)
 
+    class InsertPassport(QDialog):
+        def __init__(self, birthday, passports):
+            self.birthday = birthday
+            self.passports = passports
+            super().__init__()
+            self.check1 = self.check2 = self.check3 = self.check4 = self.check5 = False
+            self.setFixedSize(DOC_WINDOW_SIZE)
+            self.series_l = QLabel("Серия:", self)
+            self.series_l.move(QPoint(30, 30))
+            self.series_i = QLineEdit(self)
+            self.series_i.resize(QSize(100, 20))
+            self.series_i.move(QPoint(70, 30))
+            self.series_i.textChanged.connect(self.check_series)
+            self.series_i.textChanged.connect(self.check_all)
+
+            self.num_l = QLabel("Номер:", self)
+            self.num_l.move(QPoint(180, 30))
+            self.num_i = QLineEdit(self)
+            self.num_i.resize(QSize(100, 20))
+            self.num_i.move(QPoint(220, 30))
+            self.num_i.textChanged.connect(self.check_code_and_num)
+            self.num_i.textChanged.connect(self.check_all)
+
+            self.code_l = QLabel("Код подразделения:", self)
+            self.code_l.move(QPoint(30, 50))
+            self.code_i = QLineEdit(self)
+            self.code_i.resize(QSize(100, 20))
+            self.code_i.move(QPoint(140, 50))
+            self.code_i.textChanged.connect(self.check_code_and_num)
+            self.code_i.textChanged.connect(self.check_all)
+
+            self.agency_l = QLabel("Структурное подразделение:", self)
+            self.agency_l.move(QPoint(30, 80))
+            self.agency_i = QLineEdit(self)
+            self.agency_i.resize(QSize(250, 20))
+            self.agency_i.move(QPoint(190, 80))
+            self.agency_i.textChanged.connect(self.check_agency)
+            self.agency_i.textChanged.connect(self.check_all)
+
+            self.birth_l = QLabel("Дата рождения:", self)
+            self.birth_l.move(QPoint(30, 110))
+            self.birth_i = QDateEdit(self)
+            self.birth_i.move(QPoint(120, 110))
+            self.birth_i.dateChanged.connect(self.check_date)
+            self.birth_i.dateChanged.connect(self.check_all)
+
+            self.issue_l = QLabel("Дата выдачи:", self)
+            self.issue_l.move(QPoint(210, 110))
+            self.issue_i = QDateEdit(self)
+            self.issue_i.move(QPoint(290, 110))
+            self.issue_i.dateChanged.connect(self.check_date)
+            self.issue_i.dateChanged.connect(self.check_all)
+
+            self.ok_btn = QPushButton("OK", self)
+            self.ok_btn.resize(QSize(60, 40))
+            self.ok_btn.move(QPoint(200, 250))
+            self.ok_btn.setVisible(False)
+            self.ok_btn.clicked.connect(self.add)
+
+            self.close_btn = QPushButton("Отмена", self)
+            self.close_btn.resize(QSize(60, 40))
+            self.close_btn.move(QPoint(280, 250))
+            self.close_btn.clicked.connect(self.close)
+
+        def add(self):
+            accept_dlg = QMessageBox(self)
+            accept_dlg.setWindowTitle("Подтверждение")
+            accept_dlg.setText("Сохранить запись?")
+            accept_dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            but = accept_dlg.exec()
+
+            if but == QMessageBox.Yes:
+                self.close()
+
+        def check_series(self):
+            text = self.series_i.text()[:4]
+            text = re.findall(r"[0-9]{4}", text)
+            if text:
+                self.series_i.setText(text[0])
+                self.sender().setStyleSheet("border :1px solid ; border-color : green;")
+                self.check1 = True
+            else:
+                self.series_i.setStyleSheet("border :1px solid ; border-color : red;")
+                self.check1 = False
+
+        def check_code_and_num(self):
+            text = self.sender().text()[:6]
+            text = re.findall(r"[0-9]{6}", text)
+            if text:
+                self.sender().setText(text[0])
+                self.sender().setStyleSheet("border :1px solid ; border-color : green;")
+                if self.sender() == self.num_i:
+                    self.check2 = True
+                else:
+                    self.check3 = True
+            else:
+                self.sender().setStyleSheet("border :1px solid ; border-color : red;")
+                self.check2 = False
+                self.check3 = False
+
+        def check_agency(self):
+            text = "".join(re.findall(r"[а-яА-Я ]", self.agency_i.text()))
+            if text:
+                self.check4 = True
+            else:
+                self.check4 = False
+            self.agency_i.setText(text)
+
+        def check_all(self):
+            if self.series_i.text() + self.num_i.text() in self.passports:
+                self.check1 = self.check2 = False
+                self.series_i.setStyleSheet("border :1px solid ; border-color : red;")
+                self.num_i.setStyleSheet("border :1px solid ; border-color : red;")
+            elif self.series_i.text() and self.num_i.text():
+                self.check1 = self.check2 = True
+                self.series_i.setStyleSheet("border :1px solid ; border-color : green;")
+                self.num_i.setStyleSheet("border :1px solid ; border-color : green;")
+
+            if self.check1 and self.check2 and self.check3 and self.check4 and self.check5:
+                self.ok_btn.setVisible(True)
+            else:
+                self.ok_btn.setVisible(False)
+
+        def check_date(self):
+            if self.birthday is not None and self.birthday != self.birth_i.date():
+                self.update_date_windows(False, "red")
+            elif self.birth_i.date().year() > self.issue_i.date().year() \
+                    or self.issue_i.date().year() - self.birth_i.date().year() != 14:
+                self.update_date_windows(False, "red")
+            elif datetime.datetime.now().year - 18 > self.birth_i.date().year():
+                self.update_date_windows(False, "red")
+            else:
+                self.update_date_windows(True, "green")
+
+        def update_date_windows(self, is_ok, color):
+            self.check5 = is_ok
+            self.birth_i.setStyleSheet(f"border :1px solid ; border-color : {color};")
+            self.issue_i.setStyleSheet(f"border :1px solid ; border-color : {color};")
+
 
 class InsertTeacherWindow(InsertHumanWindow):
     def __init__(self, db):
         super().__init__(db)
 
+        cur = self.bd.cursor()
+        cur.execute("SELECT series, number FROM teacherpassport")
+        self.passports = [i[0] + i[1] for i in cur.fetchall()]
+        cur.close()
+        self.bd.reconnect()
+
+        cur = self.bd.cursor()
+        cur.execute("SELECT number FROM teachermedcard")
+        self.medcards = [i[0] for i in cur.fetchall()]
+        cur.close()
+        self.bd.reconnect()
+
+        self.is_telephone = self.is_medcard = False
+
+        self.telephone_l = QLabel("Телефон:", self)
+        self.telephone_l.move(QPoint(180, 50))
+        self.telephone_i = QLineEdit(self)
+        self.telephone_i.resize(QSize(100, 20))
+        self.telephone_i.move(QPoint(240, 50))
+        self.telephone_i.textChanged.connect(self.filter_for_telephone)
+
+        self.medcard_btn = QPushButton("Добавить мед. книжку", self)
+        self.medcard_btn.move(QPoint(150, 120))
+        self.passport_btn.move(QPoint(30, 120))
+        self.medcard_btn.setVisible(False)
+
+        self.edc_level_l = QLabel("Уровень образования:", self)
+        self.edc_level_l.move(QPoint(30, 90))
+        self.edc_level_box = QComboBox(self)
+        self.edc_level_box.move(QPoint(150, 88))
+        self.fill_edc_level_box()
+
+        self.name_i.textChanged.connect(self.check_all)
+        self.surname_i.textChanged.connect(self.check_all)
+        self.email_i.textChanged.connect(self.check_all)
+        self.telephone_i.textChanged.connect(self.check_all)
+
+        self.passport_btn.clicked.connect(self.open_passport_window)
+        self.medcard_btn.clicked.connect(self.open_medcard_window)
+
+    def fill_edc_level_box(self):
+        cur = self.bd.cursor()
+        cur.execute("SELECT education_level FROM educationlevel")
+        edc_lvl_data = cur.fetchall()
+        cur.close()
+        self.bd.reconnect()
+        self.edc_level_box.addItems([i[0] for i in edc_lvl_data])
+
+    def check_all(self):
+        if self.is_name and self.is_surname and self.is_telephone and self.is_email and self.is_passport:
+            self.ok_btn.setVisible(True)
+
+    def filter_for_telephone(self):
+        text = self.telephone_i.text()
+        if text.startswith("+7"):
+            text = text.replace("+7", "8")
+        self.telephone_i.setText(text)
+        text = re.findall(r"[8]{1}[0-9]{10}", text)
+        if text:
+            self.telephone_i.setText(text[0])
+            self.telephone_i.setStyleSheet("border :1px solid ; border-color : green;")
+            self.is_telephone = True
+        else:
+            self.telephone_i.setStyleSheet("border :1px solid ; border-color : red;")
+            self.is_telephone = False
+
+    def set_visible_btn(self):
+        if self.name_i.text() and self.surname_i.text():
+            is_visible = True
+        else:
+            is_visible = False
+        self.passport_btn.setVisible(is_visible)
+
+    def open_passport_window(self):
+        self.window = self.InsertPassport(self.passports)
+        self.window.exec()
+        temp = self.window
+        if temp.check1 and temp.check2 and temp.check3 and temp.check4 and temp.check5:
+            self.is_passport = True
+            birth_date = f"{temp.birth_i.date().year()}-{temp.birth_i.date().month()}-{temp.birth_i.date().day()}"
+            issue_date = f"{temp.issue_i.date().year()}-{temp.issue_i.date().month()}-{temp.issue_i.date().day()}"
+            self.passport_dict = {"series": temp.series_i.text(), "number": temp.num_i.text(),
+                                  "division_code": temp.code_i.text(), "date_of_birthday": birth_date,
+                                  "authorized_agency": temp.agency_i.text(), "date_of_issue": issue_date}
+            self.passport_btn.setStyleSheet("border :1px solid ; border-color : green;")
+            self.passport_btn.setEnabled(False)
+            self.medcard_btn.setVisible(True)
+            self.check_all()
+
+    def open_medcard_window(self):
+        self.window = self.InsertMedCard(self.medcards, int(self.passport_dict["date_of_birthday"].split("-")[0]))
+        self.window.exec()
+        temp = self.window
+        if temp.is_num and temp.is_date:
+            date = f"{temp.date_i.date().year()}-{temp.date_i.date().month()}-{temp.date_i.date().day()}"
+            self.medcard_dict = {"date_of_issue": date, "number": temp.num_i.text()}
+            self.is_medcard = True
+            self.medcard_btn.setStyleSheet("border :1px solid ; border-color : green;")
+            self.medcard_btn.setEnabled(False)
+
+    class InsertPassport(QDialog):
+        def __init__(self, passports):
+            self.passports = passports
+            super().__init__()
+            self.check1 = self.check2 = self.check3 = self.check4 = self.check5 = False
+            self.setFixedSize(DOC_WINDOW_SIZE)
+            self.series_l = QLabel("Серия:", self)
+            self.series_l.move(QPoint(30, 30))
+            self.series_i = QLineEdit(self)
+            self.series_i.resize(QSize(100, 20))
+            self.series_i.move(QPoint(70, 30))
+            self.series_i.textChanged.connect(self.check_series)
+            self.series_i.textChanged.connect(self.check_all)
+
+            self.num_l = QLabel("Номер:", self)
+            self.num_l.move(QPoint(180, 30))
+            self.num_i = QLineEdit(self)
+            self.num_i.resize(QSize(100, 20))
+            self.num_i.move(QPoint(220, 30))
+            self.num_i.textChanged.connect(self.check_code_and_num)
+            self.num_i.textChanged.connect(self.check_all)
+
+            self.code_l = QLabel("Код подразделения:", self)
+            self.code_l.move(QPoint(30, 50))
+            self.code_i = QLineEdit(self)
+            self.code_i.resize(QSize(100, 20))
+            self.code_i.move(QPoint(140, 50))
+            self.code_i.textChanged.connect(self.check_code_and_num)
+            self.code_i.textChanged.connect(self.check_all)
+
+            self.agency_l = QLabel("Структурное подразделение:", self)
+            self.agency_l.move(QPoint(30, 80))
+            self.agency_i = QLineEdit(self)
+            self.agency_i.resize(QSize(250, 20))
+            self.agency_i.move(QPoint(190, 80))
+            self.agency_i.textChanged.connect(self.check_agency)
+            self.agency_i.textChanged.connect(self.check_all)
+
+            self.birth_l = QLabel("Дата рождения:", self)
+            self.birth_l.move(QPoint(30, 110))
+            self.birth_i = QDateEdit(self)
+            self.birth_i.move(QPoint(120, 110))
+            self.birth_i.dateChanged.connect(self.check_date)
+            self.birth_i.dateChanged.connect(self.check_all)
+
+            self.issue_l = QLabel("Дата выдачи:", self)
+            self.issue_l.move(QPoint(210, 110))
+            self.issue_i = QDateEdit(self)
+            self.issue_i.move(QPoint(290, 110))
+            self.issue_i.dateChanged.connect(self.check_date)
+            self.issue_i.dateChanged.connect(self.check_all)
+
+            self.ok_btn = QPushButton("OK", self)
+            self.ok_btn.resize(QSize(60, 40))
+            self.ok_btn.move(QPoint(200, 250))
+            self.ok_btn.setVisible(False)
+            self.ok_btn.clicked.connect(self.add)
+
+            self.close_btn = QPushButton("Отмена", self)
+            self.close_btn.resize(QSize(60, 40))
+            self.close_btn.move(QPoint(280, 250))
+            self.close_btn.clicked.connect(self.close)
+
+        def add(self):
+            accept_dlg = QMessageBox(self)
+            accept_dlg.setWindowTitle("Подтверждение")
+            accept_dlg.setText("Сохранить запись?")
+            accept_dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            but = accept_dlg.exec()
+
+            if but == QMessageBox.Yes:
+                self.close()
+
+        def check_series(self):
+            text = self.series_i.text()[:4]
+            text = re.findall(r"[0-9]{4}", text)
+            if text:
+                self.series_i.setText(text[0])
+                self.sender().setStyleSheet("border :1px solid ; border-color : green;")
+                self.check1 = True
+            else:
+                self.series_i.setStyleSheet("border :1px solid ; border-color : red;")
+                self.check1 = False
+
+        def check_code_and_num(self):
+            text = self.sender().text()[:6]
+            text = re.findall(r"[0-9]{6}", text)
+            if text:
+                self.sender().setText(text[0])
+                self.sender().setStyleSheet("border :1px solid ; border-color : green;")
+                if self.sender() == self.num_i:
+                    self.check2 = True
+                else:
+                    self.check3 = True
+            else:
+                self.sender().setStyleSheet("border :1px solid ; border-color : red;")
+                self.check2 = False
+                self.check3 = False
+
+        def check_agency(self):
+            text = "".join(re.findall(r"[а-яА-Я ]", self.agency_i.text()))
+            if text:
+                self.check4 = True
+            else:
+                self.check4 = False
+            self.agency_i.setText(text)
+
+        def check_all(self):
+            if self.series_i.text() + self.num_i.text() in self.passports:
+                self.check1 = self.check2 = False
+                self.series_i.setStyleSheet("border :1px solid ; border-color : red;")
+                self.num_i.setStyleSheet("border :1px solid ; border-color : red;")
+            elif self.series_i.text() and self.num_i.text():
+                self.check1 = self.check2 = True
+                self.series_i.setStyleSheet("border :1px solid ; border-color : green;")
+                self.num_i.setStyleSheet("border :1px solid ; border-color : green;")
+
+            if self.check1 and self.check2 and self.check3 and self.check4 and self.check5:
+                self.ok_btn.setVisible(True)
+            else:
+                self.ok_btn.setVisible(False)
+
+        def check_date(self):
+            self.update_date_windows(True, "green")
+
+        def update_date_windows(self, is_ok, color):
+            self.check5 = is_ok
+            self.birth_i.setStyleSheet(f"border :1px solid ; border-color : {color};")
+            self.issue_i.setStyleSheet(f"border :1px solid ; border-color : {color};")
+
     def insert(self):
-        self.close()
+        accept_dlg = QMessageBox(self)
+        accept_dlg.setWindowTitle("Подтверждение")
+        accept_dlg.setText("Сохранить запись?")
+        accept_dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        but = accept_dlg.exec()
+
+        if but == QMessageBox.Yes:
+            cur = self.bd.cursor()
+            cur.execute(f"INSERT INTO teacherpassport (series, number, division_code, date_of_issue,"
+                        f" authorized_agency, date_of_birthday) VALUES ('{self.passport_dict['series']}',"
+                        f" '{self.passport_dict['number']}', '{self.passport_dict['division_code']}',"
+                        f" '{self.passport_dict['date_of_issue']}', '{self.passport_dict['authorized_agency']}',"
+                        f" '{self.passport_dict['date_of_birthday']}')")
+            self.bd.commit()
+            cur.close()
+            self.bd.reconnect()
+
+            cur = self.bd.cursor()
+            cur.execute(f"SELECT id_passport FROM teacherpassport "
+                        f"WHERE series='{self.passport_dict['series']}' AND number='{self.passport_dict['number']}'")
+            id_passport = cur.fetchall()[0][0]
+            cur.close()
+            self.bd.reconnect()
+
+            cur = self.bd.cursor()
+            cur.execute(f"INSERT INTO teacherdocuments (id_passport) VALUES ({id_passport})")
+            self.bd.commit()
+            cur.close()
+            self.bd.reconnect()
+
+            cur = self.bd.cursor()
+            cur.execute(f"SELECT id_documnets FROM teacherdocuments WHERE id_passport={id_passport}")
+            id_doc = cur.fetchall()[0][0]
+            cur.close()
+            self.bd.reconnect()
+
+            if self.is_medcard:
+                cur = self.bd.cursor()
+                cur.execute(f"INSERT INTO teachermedcard (date_of_issue, number)"
+                            f" VALUES ('{self.medcard_dict['date_of_issue']}', '{self.medcard_dict['number']}')")
+                self.bd.commit()
+                cur.close()
+                self.bd.reconnect()
+
+                cur = self.bd.cursor()
+                cur.execute(f"SELECT id_medcard FROM teachermedcard WHERE number='{self.medcard_dict['number']}'")
+                id_medcard = cur.fetchall()[0][0]
+                cur.close()
+                self.bd.reconnect()
+
+                cur = self.bd.cursor()
+                cur.execute(f"UPDATE teacherdocuments SET id_medcard={id_medcard} WHERE id_documnets={id_doc}")
+                self.bd.commit()
+                cur.close()
+                self.bd.reconnect()
+
+            cur = self.bd.cursor()
+            cur.execute(f"INSERT INTO teacher (name_teacher, surname_teacher, telephone_number,"
+                        f" work_email, education_level, id_documnets) VALUES ('{self.name_i.text()}',"
+                        f" '{self.surname_i.text()}', '{self.telephone_i.text()}', '{self.email_i.text()}',"
+                        f" {self.edc_level_box.currentIndex() + 1}, {id_doc})")
+            self.bd.commit()
+            cur.close()
+            self.bd.reconnect()
+
+            ok_window = QMessageBox(self)
+            ok_window.setText("Запись успешно создана")
+            ok_window.setStandardButtons(QMessageBox.Ok)
+            self.close()
 
 
 class InsertCourseWindow(InsertWindow):
@@ -749,6 +1133,7 @@ class InsertGroupWindow(InsertWindow):
             ok_window.setStandardButtons(QMessageBox.Ok)
             self.close()
 
+
 def except_hook(cls, exception, traceback):
     sys.__excepthook__(cls, exception, traceback)
 
@@ -756,7 +1141,7 @@ def except_hook(cls, exception, traceback):
 if __name__ == "__main__":
     from database import create_connection
     app = QApplication(sys.argv)
-    ex = InsertGroupWindow(create_connection())
+    ex = InsertTeacherWindow(create_connection())
     ex.show()
     sys.excepthook = except_hook
     app.exec()
