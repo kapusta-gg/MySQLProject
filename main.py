@@ -53,6 +53,7 @@ class Main(QMainWindow):
         self.add_col = QPushButton("Добавить запись", self)
         self.add_col.resize(QSize(140, 60))
         self.add_col.move(QPoint(30, 160))
+        self.add_col.clicked.connect(self.open_insert_window)
 
         self.update_table_timer = QTimer()
         self.update_table_timer.setInterval(UPDATE_SECONDS * SEC_IN_MILISEC)
@@ -165,6 +166,10 @@ class Main(QMainWindow):
 
     def set_id_row(self):
         self.id_row = self.add_conditions_box.currentIndex()
+
+    def open_insert_window(self):
+        self.insert_window = INSERT_WINDOWS_DICT[self.table_info.currentText()](self.db)
+        self.insert_window.exec()
 
 
 def except_hook(cls, exception, traceback):
