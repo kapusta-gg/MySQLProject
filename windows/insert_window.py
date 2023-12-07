@@ -1,7 +1,6 @@
 import sys
 import re
 import datetime
-import pprint  # TODO: удалить в конце
 
 from PyQt5.QtWidgets import QDialog, QLabel, QLineEdit, QPushButton, QComboBox, QListWidget, QDateEdit, QApplication, \
     QMessageBox, QTextEdit, QFileDialog
@@ -1622,14 +1621,3 @@ class InsertMaterial(InsertWindow):
 
 def except_hook(cls, exception, traceback):
     sys.__excepthook__(cls, exception, traceback)
-
-
-# TODO: удалить в конце
-if __name__ == "__main__":
-    from database import create_connection
-
-    app = QApplication(sys.argv)
-    ex = InsertCourseWindow(create_connection())
-    ex.show()
-    sys.excepthook = except_hook
-    app.exec()

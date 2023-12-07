@@ -2,7 +2,7 @@ import sys
 
 from PyQt5.QtWidgets import QApplication, QMainWindow, QComboBox, QTableWidget, QTableWidgetItem, QAbstractItemView, \
     QLineEdit, QPushButton, QInputDialog, QErrorMessage, QMessageBox
-from PyQt5.QtCore import QPoint, QTimer
+from PyQt5.QtCore import QTimer
 
 from database import create_connection
 from objects.buttons import *
