@@ -109,7 +109,7 @@ class Main(QMainWindow):
         temp_btn.clicked.connect(self.open_update_window)
 
     def open_update_window(self):
-        self.update_window = UPDATE_WINDOWS_DICT[self.table_info.currentText()](self.sender().col_id)
+        self.update_window = UPDATE_WINDOWS_DICT[self.table_info.currentText()](self.sender().col_id, self.db)
         self.update_window.exec()
 
     def delete_rows(self):

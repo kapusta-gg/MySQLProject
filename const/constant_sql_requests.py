@@ -17,3 +17,6 @@ COL_NAME_REQUEST = {"Ученики": ["s.id_student", "s.name_student", "s.surn
                     "Курсы": ["c.id_course", "c.name", "c.duration", "c.complexity"],
                     "Группы": ["sp.id_group", "sp.max_student_in_group", "l.cabinet",
                                "l.time_lessons", "l.date_lessons"]}
+STUDENTS_TO_GROUP_REQUEST = "select s.max_students_in_group, curr_num_students(s.id_group), s.id_group, c.name  from " \
+                            "studygroup s left join groupteacher g left join course c on c.id_course = g.id_course on" \
+                            " g.id_group = s.id_group "
