@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QDialog, QLabel, QLineEdit, QApplication, QPushButton, QComboBox, QListWidget,\
+from PyQt5.QtWidgets import QDialog, QLabel, QLineEdit, QApplication, QPushButton, QComboBox, QListWidget, \
     QMessageBox, QCheckBox, QInputDialog, QErrorMessage, QDateEdit, QTextEdit
 from PyQt5.Qt import QSize, QPoint, QDate
 
@@ -40,7 +40,7 @@ class UpdateWidget(QDialog):
     def warn_user(self):
         warn_dlg = QMessageBox(self)
         warn_dlg.setText("Удаляя/Добавляя вы изменяете данные бд")
-        warn_dlg.setStandardButtons(QMessageBox.Ok| QMessageBox.Cancel)
+        warn_dlg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
         btn = warn_dlg.exec()
 
         if btn == QMessageBox.Ok:
@@ -472,7 +472,8 @@ class UpdateStudentWidget(UpdateHumanWidget):
             cur.close()
         if self.id_certificate is not None:
             cur = self.bd.cursor()
-            cur.execute(f"SELECT date_of_birthday FROM studentbirthcertificate WHERE id_certificate={self.id_certificate}")
+            cur.execute(
+                f"SELECT date_of_birthday FROM studentbirthcertificate WHERE id_certificate={self.id_certificate}")
             self.birthday = cur.fetchall()[0][0]
             cur.close()
         self.set_old_data()
@@ -582,7 +583,8 @@ class UpdateStudentWidget(UpdateHumanWidget):
             self.groups_box.addItem(group.text())
             self.del_group_btn.setVisible(False)
             cur = self.bd.cursor()
-            cur.execute(f"DELETE FROM studentgroup WHERE id_student={self.id_row} AND id_group={group.text().split('-')[0]}")
+            cur.execute(
+                f"DELETE FROM studentgroup WHERE id_student={self.id_row} AND id_group={group.text().split('-')[0]}")
             self.bd.commit()
             cur.close()
             self.bd.reconnect()
@@ -628,7 +630,7 @@ class UpdateStudentWidget(UpdateHumanWidget):
             data = cur.fetchall()[0]
             cur.close()
             self.bd.reconnect()
-            dlg = self.CheckPassport({table_names[i]:data[i] for i in range(len(data))})
+            dlg = self.CheckPassport({table_names[i]: data[i] for i in range(len(data))})
             dlg.exec()
 
     def check_certificate(self):
@@ -644,7 +646,7 @@ class UpdateStudentWidget(UpdateHumanWidget):
             data = cur.fetchall()[0]
             cur.close()
             self.bd.reconnect()
-            dlg = self.CheckBirthCertificate({table_names[i]:data[i] for i in range(len(data))})
+            dlg = self.CheckBirthCertificate({table_names[i]: data[i] for i in range(len(data))})
             dlg.exec()
 
     def update_name(self):
@@ -1012,9 +1014,191 @@ class UpdateCourseWidget(UpdateWidget):
         self.curr_block_id = self.blocks[self.blocks_list.currentRow()][0]
         print(self.curr_block_id)
 
+
 class UpdateGroupWidget(UpdateWidget):
     def __init__(self, id_row, bd):
         super().__init__(id_row, bd)
+
+        self.check_admin.clicked.connect(self.check_permission)
+
+        cur = self.bd.cursor()
+        cur.execute(f"call group_info({id_row}, 1)")
+        table_names = [i[0] for i in cur.description]
+        data = cur.fetchall()[0]
+        self.data_dict = {table_names[i]: data[i] for i in range(len(data))}
+        cur.close()
+        self.bd.reconnect()
+
+        self.time_dict = {i: set() for i in range(8, 20)}
+
+        cur = self.bd.cursor()
+        cur.execute(f"SELECT l.time_lessons, l.date_lessons FROM studygroup s"
+                    f" LEFT JOIN lessonsday l ON l.id_date_lessons = s.id_date_lessons WHERE s.id_group != {id_row}")
+        data = [(i[0].seconds // 60 // 60, i[1].split("-")) for i in cur.fetchall()]
+        for elem in data:
+            self.time_dict[elem[0]].add(elem[1][0])
+            self.time_dict[elem[0]].add(elem[1][1])
+        cur.close()
+        self.bd.reconnect()
+
+        self.courses_l = QLabel(f"Курс: {self.data_dict['name']}", self)
+        self.courses_l.move(QPoint(30, 30))
+
+        self.teachers_l = QLabel(f"Преподователь: {self.data_dict['teacher_date']}", self)
+        self.teachers_l.move(QPoint(200, 30))
+
+        self.days_l = QLabel("Дни недели:", self)
+        self.days_l.move(QPoint(30, 60))
+        self.deff = QLabel("---", self)
+        self.deff.move(QPoint(210, 60))
+        self.day_one = QComboBox(self)
+        self.day_one.move(QPoint(100, 58))
+        self.day_one.addItems(WEEK_DAYS[:-2])
+        self.day_one.currentIndexChanged.connect(self.fill_second_day)
+        self.day_one.currentIndexChanged.connect(self.check_schedule)
+        self.day_two = QComboBox(self)
+        self.day_two.move(QPoint(230, 58))
+        self.day_two.currentIndexChanged.connect(self.check_schedule)
+        self.fill_second_day()
+        self.day_one.resize(QSize(100, 20))
+        self.day_two.resize(QSize(100, 20))
+
+        self.time_l = QLabel("Время:", self)
+        self.time_l.move(QPoint(30, 90))
+        self.time_box = QComboBox(self)
+        self.time_box.move(QPoint(70, 88))
+        self.time_box.addItems([str(i) for i in range(8, 19)])
+        self.time_box.currentIndexChanged.connect(self.check_schedule)
+        self.time_box.resize(QSize(50, 20))
+
+        self.cabinet_l = QLabel(f"Кабинет: {self.data_dict['cabinet']}", self)
+        self.cabinet_l.move(QPoint(140, 90))
+
+        self.spots_l = QLabel(f"Макс. кол-во студентов: {self.data_dict['max_students_in_group']}", self)
+        self.spots_l.move(QPoint(250, 90))
+
+        self.students_l = QLabel("Студенты:", self)
+        self.students_l.move(QPoint(30, 120))
+
+        self.students_box = QComboBox(self)
+        self.students_box.move(QPoint(90, 118))
+        self.fill_students_box()
+
+        self.add_student_btn = QPushButton("Добавить", self)
+        self.add_student_btn.move((QPoint(300, 118)))
+        self.add_student_btn.clicked.connect(self.add_student)
+        self.add_student_btn.clicked.connect(self.set_visible_add)
+
+        self.del_student_btn = QPushButton("Удалить", self)
+        self.del_student_btn.move(QPoint(380, 118))
+        self.del_student_btn.clicked.connect(self.del_student)
+
+        self.students_table = QListWidget(self)
+        self.students_table.move(QPoint(120, 160))
+        self.students_table.itemChanged.connect(self.set_visible_del)
+        self.fill_students_table()
+
+        self.set_old_data()
+
+    def add_student(self):
+        cur = self.bd.cursor()
+        cur.execute(f"INSERT INTO studentgroup (id_student, id_group) VALUES"
+                    f" ({self.students_box.currentText().split('.')[0]}, {self.id_row})")
+        self.bd.commit()
+        cur.close()
+        self.bd.reconnect()
+        self.students_table.addItem(self.students_box.currentText())
+        self.students_box.removeItem(self.students_box.currentIndex())
+        self.set_visible_add()
+
+    def del_student(self):
+        student = self.students_table.takeItem(self.students_table.currentRow())
+        cur = self.bd.cursor()
+        cur.execute(f"DELETE FROM studentgroup"
+                    f" WHERE id_student = {student.text().split('.')[0]} AND id_group = {self.id_row}")
+        self.bd.commit()
+        cur.close()
+        self.bd.reconnect()
+        self.fill_students_box()
+        self.set_visible_del()
+
+    def set_old_data(self):
+        self.is_changed = False
+        self.time_box.setEnabled(False)
+        self.day_one.setEnabled(False)
+        self.day_two.setEnabled(False)
+        self.day_one.setStyleSheet("border :1px solid ; border-color : gray;")
+        self.day_two.setStyleSheet("border :1px solid ; border-color : gray;")
+        self.time_box.setStyleSheet("border :1px solid ; border-color : gray;")
+        self.new_data_dict = self.data_dict
+        self.time_box.setCurrentIndex(self.data_dict['time_lessons'].seconds // 60 // 60 - 8)
+        one, two = self.data_dict['date_lessons'].split('-')
+        self.day_one.setCurrentIndex(WEEK_DAYS.index(one))
+        ind = self.day_one.currentIndex()
+        self.day_two.setCurrentIndex(WEEK_DAYS[ind + 1:].index(two))
+        self.ok_btn.setVisible(False)
+
+    def set_visible_add(self):
+        if self.students_table.count() == self.data_dict['max_students_in_group']:
+            self.add_student_btn.setVisible(False)
+        else:
+            self.add_student_btn.setVisible(True)
+
+    def set_visible_del(self):
+        if self.students_table.count():
+            self.del_student_btn.setVisible(True)
+        else:
+            self.del_student_btn.setVisible(False)
+
+    def fill_students_table(self):
+        cur = self.bd.cursor()
+        cur.execute(f"SELECT s2.id_student, CONCAT(s2.name_student, ' ', s2.surname_student) as student_data"
+                    f" FROM studentgroup s LEFT JOIN student s2 ON s2.id_student = s.id_student"
+                    f" WHERE s.id_group = {self.id_row}")
+        data = [str(i[0]) + "." + i[1] for i in cur.fetchall()]
+        cur.close()
+        self.bd.reconnect()
+        self.students_table.addItems(data)
+
+    def fill_students_box(self):
+        cur = self.bd.cursor()
+        cur.execute(f"SELECT s.id_student, CONCAT(s.name_student, ' ', s.surname_student) AS student_data"
+                    f" FROM student s WHERE"
+                    f" NOT EXISTS(SELECT * FROM studentgroup s2"
+                    f" WHERE s2.id_student = s.id_student AND s2.id_group = {self.id_row})")
+        data = [str(i[0]) + "." + i[1] for i in cur.fetchall()]
+        cur.close()
+        self.bd.reconnect()
+        self.students_box.addItems(data)
+
+    def fill_second_day(self):
+        self.day_two.clear()
+        ind = self.day_one.currentIndex()
+        self.day_two.addItems(WEEK_DAYS[ind + 1:])
+
+    def check_schedule(self):
+        if self.is_admin:
+            if self.day_one.currentText() in self.time_dict[int(self.time_box.currentText())] \
+                    or self.day_two.currentText() in self.time_dict[int(self.time_box.currentText())]:
+                self.day_one.setStyleSheet("border :1px solid ; border-color : red;")
+                self.day_two.setStyleSheet("border :1px solid ; border-color : red;")
+                self.time_box.setStyleSheet("border :1px solid ; border-color : red;")
+                self.ok_btn.setVisible(False)
+                self.is_changed = False
+            else:
+                self.day_one.setStyleSheet("border :1px solid ; border-color : green;")
+                self.day_two.setStyleSheet("border :1px solid ; border-color : green;")
+                self.time_box.setStyleSheet("border :1px solid ; border-color : green;")
+                self.ok_btn.setVisible(True)
+                self.is_changed = True
+
+    def check_permission(self):
+        if self.is_admin:
+            self.time_box.setEnabled(True)
+            self.day_one.setEnabled(True)
+            self.day_two.setEnabled(True)
+        else:
+            self.set_old_data()
 
     def update_col(self):
         accept_dlg = QMessageBox(self)
@@ -1024,6 +1208,27 @@ class UpdateGroupWidget(UpdateWidget):
         but = accept_dlg.exec()
 
         if but == QMessageBox.Yes:
+            if self.is_changed:
+                cur = self.bd.cursor()
+                cur.execute(f"SELECT id_date_lessons FROM studygroup WHERE id_group={self.id_row}")
+                id = cur.fetchall()[0][0]
+                cur.close()
+                self.bd.reconnect()
+
+                cur = self.bd.cursor()
+                cur.execute(f"UPDATE lessonsday SET date_lessons='{self.day_one.currentText()}"
+                            f"-{self.day_two.currentText()}' WHERE id_date_lessons={id}")
+                self.bd.commit()
+                cur.close()
+                self.bd.reconnect()
+
+                cur = self.bd.cursor()
+                cur.execute(f"UPDATE lessonsday SET time_lessons=TIME('{self.time_box.currentText()}:00:00')"
+                            f" WHERE id_date_lessons={id}")
+                self.bd.commit()
+                cur.close()
+                self.bd.reconnect()
+
             ok_window = QMessageBox(self)
             ok_window.setText("Запись успешно создана")
             ok_window.setStandardButtons(QMessageBox.Ok)
@@ -1192,8 +1397,9 @@ def except_hook(cls, exception, traceback):
 if __name__ == "__main__":
     from database import create_connection
     import sys
+
     app = QApplication(sys.argv)
-    ex = UpdateCourseWidget("23", create_connection())
+    ex = UpdateGroupWidget("2", create_connection())
     ex.show()
     sys.excepthook = except_hook
     app.exec()
