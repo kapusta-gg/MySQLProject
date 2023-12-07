@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import QDialog, QLabel, QLineEdit, QApplication, QPushButton, QComboBox, QListWidget,\
-    QMessageBox, QCheckBox, QInputDialog, QErrorMessage, QDateEdit
+    QMessageBox, QCheckBox, QInputDialog, QErrorMessage, QDateEdit, QTextEdit
 from PyQt5.Qt import QSize, QPoint, QDate
 
 from const.const_update_windows import *
@@ -7,6 +7,7 @@ from abc import abstractmethod
 
 import re
 import datetime
+
 
 class UpdateWidget(QDialog):
     def __init__(self, id_row, bd):
@@ -943,16 +944,77 @@ class UpdateTeacherWidget(UpdateWidget):
 
 
 class UpdateCourseWidget(UpdateWidget):
-    def __init__(self, id_row):
-        super().__init__(id_row)
+    def __init__(self, id_row, bd):
+        super().__init__(id_row, bd)
 
-    def update_col(self):
-        pass
+        self.curr_block_id = None
+        self.check_admin.setVisible(False)
 
+        cur = self.bd.cursor()
+        cur.execute(f"SELECT name, description, duration, complexity FROM course WHERE id_course = {id_row}")
+        table_names = [i[0] for i in cur.description]
+        data = cur.fetchall()[0]
+        self.data_dict = {table_names[i]: data[i] for i in range(len(data))}
+        cur.close()
+        self.bd.reconnect()
+
+        cur = self.bd.cursor()
+        cur.execute(f"SELECT b.id_block, b2.name FROM blockcourse b"
+                    f" LEFT JOIN block b2 ON b2.id_block = b.id_block"
+                    f" WHERE b.id_course = {id_row} ORDER BY b.order_of_arragment")
+        data = cur.fetchall()
+        self.blocks = {i: data[i] for i in range(len(data))}
+        cur.close()
+        self.bd.reconnect()
+
+        self.name_l = QLabel(f"Навзвание: {self.data_dict['name']}", self)
+        self.name_l.move(QPoint(30, 30))
+
+        self.duration_l = QLabel(f"Длительность: {self.data_dict['duration']}(лет)", self)
+        self.duration_l.move(QPoint(30, 55))
+
+        self.complexity_l = QLabel(f"Сложность: {self.data_dict['complexity']}", self)
+        self.complexity_l.move(QPoint(180, 55))
+
+        self.description_l = QLabel("Описание:", self)
+        self.description_l.move(QPoint(30, 80))
+        self.description_i = QTextEdit(self)
+        self.description_i.move(QPoint(30, 100))
+        self.description_i.resize(QSize(440, 100))
+        self.description_i.setEnabled(False)
+        self.description_i.setText(self.data_dict['description'])
+
+        self.blocks_l = QLabel("Структура курса:", self)
+        self.blocks_l.move(QPoint(30, 220))
+
+        self.check_block_btn = QPushButton("Посмотреть", self)
+        self.check_block_btn.move(QPoint(160, 218))
+        self.check_block_btn.clicked.connect(self.check_block)
+
+        self.blocks_list = QListWidget(self)
+        self.blocks_list.move(QPoint(30, 250))
+        self.blocks_list.resize(QSize(440, 200))
+        self.blocks_list.addItems([v[1] for v in self.blocks.values()])
+        self.blocks_list.itemClicked.connect(self.change_block_id)
+
+        self.close_btn.move(QPoint(230, 450))
+
+    def check_block(self):
+        if self.curr_block_id is not None:
+            window = CheckBlock(self.curr_block_id, self.bd)
+        else:
+            window = QMessageBox(self)
+            window.setText("Блок не выбран")
+            window.setStandardButtons(QMessageBox.Ok)
+        window.exec()
+
+    def change_block_id(self):
+        self.curr_block_id = self.blocks[self.blocks_list.currentRow()][0]
+        print(self.curr_block_id)
 
 class UpdateGroupWidget(UpdateWidget):
-    def __init__(self, id_row):
-        super().__init__(id_row)
+    def __init__(self, id_row, bd):
+        super().__init__(id_row, bd)
 
     def update_col(self):
         accept_dlg = QMessageBox(self)
@@ -969,6 +1031,160 @@ class UpdateGroupWidget(UpdateWidget):
             self.close()
 
 
+class CheckBlock(UpdateWidget):
+    def __init__(self, row_id, bd):
+        super().__init__(row_id, bd)
+        self.check_admin.setVisible(False)
+
+        NAME = 1
+
+        cur = self.bd.cursor()
+        cur.execute(f"SELECT b.name, b2.block_type FROM block b LEFT JOIN"
+                    f" blocktype b2 on b.id_block_type = b2.id_block_type WHERE b.id_block={row_id}")
+        table_names = [i[0] for i in cur.description]
+        data = cur.fetchall()[0]
+        self.data_dict = {table_names[i]: data[i] for i in range(len(data))}
+        cur.close()
+        self.bd.reconnect()
+
+        cur = self.bd.cursor()
+        cur.execute(f"SELECT tb.id_task, t.name FROM taskblock tb left join task t ON tb.id_task = t.id_task"
+                    f" WHERE tb.id_block={row_id} ORDER BY tb.order_of_arragment")
+        data = cur.fetchall()
+        self.tasks = {i: data[i] for i in range(len(data))}
+        cur.close()
+        self.bd.reconnect()
+
+        cur = self.bd.cursor()
+        cur.execute(f"SELECT bm.id_material, m.name FROM blockmaterial bm"
+                    f" LEFT JOIN material m ON m.id_material = bm.id_material"
+                    f" WHERE bm.id_block={row_id} ORDER BY bm.order_of_arragment")
+        data = cur.fetchall()
+        self.materials = {i: data[i] for i in range(len(data))}
+        cur.close()
+        self.bd.reconnect()
+
+        self.curr_material_id = None
+        self.curr_task_id = None
+
+        self.name_l = QLabel(f"Название: {self.data_dict['name']}", self)
+        self.name_l.move(QPoint(30, 30))
+
+        self.type_l = QLabel(f"Тип: {self.data_dict['block_type']}", self)
+        self.type_l.move(QPoint(30, 60))
+
+        self.task_i = QLabel("Задания:", self)
+        self.task_i.move(QPoint(30, 90))
+
+        self.task_add_btn = QPushButton("Посмотреть", self)
+        self.task_add_btn.move(QPoint(30, 120))
+        self.task_add_btn.clicked.connect(self.check_task)
+
+        self.task_list = QListWidget(self)
+        self.task_list.move(QPoint(30, 150))
+        self.task_list.resize(QSize(210, 280))
+        self.task_list.addItems([v[NAME] for v in self.tasks.values()])
+        self.task_list.itemClicked.connect(self.change_task_id)
+
+        self.material_i = QLabel("Материалы:", self)
+        self.material_i.move(QPoint(250, 90))
+
+        self.material_add_btn = QPushButton("Посмотреть", self)
+        self.material_add_btn.move(QPoint(250, 120))
+        self.material_add_btn.clicked.connect(self.check_material)
+
+        self.material_list = QListWidget(self)
+        self.material_list.move(QPoint(250, 150))
+        self.material_list.resize(QSize(210, 280))
+        self.material_list.addItems([v[NAME] for v in self.materials.values()])
+        self.material_list.itemClicked.connect(self.change_material_id)
+
+        self.close_btn.move(QPoint(230, 450))
+
+    def check_task(self):
+        if self.curr_task_id is not None:
+            window = CheckTask(self.curr_task_id, self.bd)
+        else:
+            window = QMessageBox(self)
+            window.setText("Задание не выбрано")
+            window.setStandardButtons(QMessageBox.Ok)
+        window.exec()
+
+    def check_material(self):
+        if self.curr_material_id is not None:
+            window = CheckMaterial(self.curr_material_id, self.bd)
+        else:
+            window = QMessageBox(self)
+            window.setText("Материал не выбран")
+            window.setStandardButtons(QMessageBox.Ok)
+        window.exec()
+
+    def change_material_id(self):
+        self.curr_material_id = self.materials[self.material_list.currentRow()][0]
+
+    def change_task_id(self):
+        self.curr_task_id = self.tasks[self.task_list.currentRow()][0]
+
+
+class CheckTask(UpdateWidget):
+    def __init__(self, row_id, bd):
+        super().__init__(row_id, bd)
+        self.check_admin.setVisible(False)
+
+        cur = self.bd.cursor()
+        cur.execute(f"SELECT t.name , t.description, t.solution, t.max_score, t2.task_type FROM"
+                    f" task t LEFT JOIN tasktype t2 on t.id_task_type = t2.id_task_type WHERE t.id_task={row_id}")
+        table_names = [i[0] for i in cur.description]
+        data = cur.fetchall()[0]
+        self.data_dict = {table_names[i]: data[i] for i in range(len(data))}
+        cur.close()
+        self.bd.reconnect()
+
+        self.name_l = QLabel(f"Название: {self.data_dict['name']}", self)
+        self.name_l.move(QPoint(30, 30))
+
+        self.content_i = QLabel(f"Решение: {self.data_dict['solution']}", self)
+        self.content_i.move(QPoint(30, 60))
+
+        self.type_i = QLabel(f"Тип: {self.data_dict['task_type']}", self)
+        self.type_i.move(QPoint(30, 90))
+
+        self.scores_i = QLabel(f"Макс. кол-во баллов: {self.data_dict['max_score']}", self)
+        self.scores_i.move(QPoint(30, 120))
+
+        self.desc_i = QLabel("Описание: ", self)
+        self.desc_i.move(QPoint(30, 150))
+        self.desc_l = QTextEdit(self)
+        self.desc_l.move(QPoint(30, 180))
+        self.desc_l.resize(QSize(440, 250))
+        self.desc_l.setEnabled(False)
+        self.desc_l.setText(self.data_dict['description'])
+
+        self.close_btn.move(QPoint(230, 450))
+
+
+class CheckMaterial(UpdateWidget):
+    def __init__(self, row_id, bd):
+        super().__init__(row_id, bd)
+        self.check_admin.setVisible(False)
+
+        cur = self.bd.cursor()
+        cur.execute(f"SELECT name, content FROM material WHERE id_material={row_id}")
+        table_names = [i[0] for i in cur.description]
+        data = cur.fetchall()[0]
+        self.data_dict = {table_names[i]: data[i] for i in range(len(data))}
+        cur.close()
+        self.bd.reconnect()
+
+        self.name_l = QLabel(f"Название: {self.data_dict['name']}", self)
+        self.name_l.move(QPoint(30, 30))
+
+        self.content_i = QLabel(f"Контент: {self.data_dict['content']}", self)
+        self.content_i.move(QPoint(30, 60))
+
+        self.close_btn.move(QPoint(230, 450))
+
+
 def except_hook(cls, exception, traceback):
     sys.__excepthook__(cls, exception, traceback)
 
@@ -977,7 +1193,7 @@ if __name__ == "__main__":
     from database import create_connection
     import sys
     app = QApplication(sys.argv)
-    ex = UpdateStudentWidget("8", create_connection())
+    ex = UpdateCourseWidget("23", create_connection())
     ex.show()
     sys.excepthook = except_hook
     app.exec()
