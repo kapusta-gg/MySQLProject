@@ -362,7 +362,7 @@ class UpdateHumanWidget(UpdateWidget):
                     self.is_num = True
 
         def filter_medcard_date(self):
-            if self.date_i.date().year() - self.birthday_year < 18:
+            if self.date_i.date().year() - self.birthday_year.year < 18:
                 self.date_i.setStyleSheet("border :1px solid ; border-color : red;")
                 self.is_date = False
             else:
@@ -386,6 +386,27 @@ class UpdateHumanWidget(UpdateWidget):
 
             if but == QMessageBox.Yes:
                 self.close()
+
+    class CheckMedCard(QDialog):
+        def __init__(self, medcard):
+            super().__init__()
+
+            self.setFixedSize(QSize(300, 200))
+            self.date_l = QLabel("Дата получения:", self)
+            self.date_l.move(QPoint(30, 30))
+            self.date_i = QDateEdit(self)
+            self.date_i.move(QPoint(120, 28))
+            self.date_i.setEnabled(False)
+            date = QDate(medcard['date_of_issue'].year, medcard['date_of_issue'].month, medcard['date_of_issue'].day)
+            self.date_i.setDate(date)
+
+            self.num_l = QLabel(f"Номер мед. книжки: {medcard['number']}", self)
+            self.num_l.move(QPoint(30, 60))
+
+            self.ok_btn = QPushButton("Выйти", self)
+            self.ok_btn.move(QPoint(230, 480))
+            self.ok_btn.setVisible(False)
+            self.ok_btn.clicked.connect(self.close)
 
 
 class UpdateStudentWidget(UpdateHumanWidget):
@@ -470,18 +491,19 @@ class UpdateStudentWidget(UpdateHumanWidget):
             cur.execute(f"SELECT date_of_birthday FROM studentpasport WHERE id_passport={self.id_passport}")
             self.birthday = cur.fetchall()[0][0]
             cur.close()
+            self.bd.reconnect()
         if self.id_certificate is not None:
             cur = self.bd.cursor()
             cur.execute(
                 f"SELECT date_of_birthday FROM studentbirthcertificate WHERE id_certificate={self.id_certificate}")
             self.birthday = cur.fetchall()[0][0]
             cur.close()
+            self.bd.reconnect()
         self.set_old_data()
         self.name_i.textChanged.connect(self.update_name)
         self.surname_i.textChanged.connect(self.update_surname)
         self.email_i.textChanged.connect(self.update_email)
         self.status_box.currentTextChanged.connect(self.update_status)
-        print(self.new_data_dict)
 
     def fill_groups_table(self):
         cur = self.bd.cursor()
@@ -926,9 +948,208 @@ class UpdateStudentWidget(UpdateHumanWidget):
             self.issue_i.setStyleSheet(f"border :1px solid ; border-color : {color};")
 
 
-class UpdateTeacherWidget(UpdateWidget):
-    def __init__(self, id_row):
-        super().__init__(id_row)
+class UpdateTeacherWidget(UpdateHumanWidget):
+    def __init__(self, id_row, db):
+        super().__init__(id_row, db)
+        cur = self.bd.cursor()
+        cur.execute(f"call teacher_info({id_row}, 0)")
+        table_names = [i[0] for i in cur.description]
+        data = cur.fetchall()[0]
+        self.data_dict = {table_names[i]: data[i] for i in range(len(data))}
+        cur.close()
+        self.bd.reconnect()
+
+        self.is_telephone = self.is_medcard = False
+
+        self.telephone_l = QLabel("Телефон:", self)
+        self.telephone_l.move(QPoint(180, 50))
+        self.telephone_i = QLineEdit(self)
+        self.telephone_i.resize(QSize(100, 20))
+        self.telephone_i.move(QPoint(240, 50))
+        self.telephone_i.textChanged.connect(self.filter_for_telephone)
+
+        self.edc_level_l = QLabel("Уровень образования:", self)
+        self.edc_level_l.move(QPoint(30, 90))
+        self.edc_level_box = QComboBox(self)
+        self.edc_level_box.move(QPoint(150, 88))
+        self.fill_edc_level_box()
+
+        self.passport_i = QLabel("Паспорт:", self)
+        self.passport_i.move(QPoint(30, 120))
+        self.check_passport_btn = QPushButton("Посмотреть", self)
+        self.check_passport_btn.move(QPoint(80, 115))
+        self.check_passport_btn.clicked.connect(self.check_passport)
+
+        self.medcard_i = QLabel("Сертификат:", self)
+        self.medcard_i.move(QPoint(160, 120))
+        self.add_medcard_btn = QPushButton("Добавить", self)
+        self.add_medcard_btn.move(QPoint(230, 115))
+        self.add_medcard_btn.setVisible(False)
+        self.add_medcard_btn.clicked.connect(self.add_medcard)
+        self.check_medcard_btn = QPushButton("Посмотреть", self)
+        self.check_medcard_btn.move(QPoint(230, 115))
+        self.check_medcard_btn.clicked.connect(self.check_medcard)
+
+        cur = self.bd.cursor()
+        cur.execute(f"SELECT id_passport, id_medcard FROM teacherdocuments"
+                    f" WHERE id_documnets={self.data_dict['id_documnets']}")
+        self.id_passport, self.id_medcard = cur.fetchall()[0]
+        cur.close()
+        self.bd.reconnect()
+
+        print(self.data_dict)
+        print(self.id_passport, self.id_medcard)
+        self.set_old_data()
+
+        cur = self.bd.cursor()
+        cur.execute(f"SELECT CONCAT('Group: ', g.id_group  , '.', c.name) AS `group`"
+                    f" FROM groupteacher g LEFT JOIN course c on c.id_course = g.id_course"
+                    f" WHERE id_teacher={self.id_row}")
+        data = cur.fetchall()[0]
+        cur.close()
+        self.bd.reconnect()
+
+        cur = self.bd.cursor()
+        cur.execute(f"SELECT date_of_birthday FROM teacherpassport WHERE id_passport={self.id_passport}")
+        self.birthday = cur.fetchall()[0][0]
+        cur.close()
+        self.bd.reconnect()
+
+        cur = self.bd.cursor()
+        cur.execute("SELECT number FROM teachermedcard")
+        self.medcards = [i[0] for i in cur.fetchall()]
+        cur.close()
+        self.bd.reconnect()
+
+        self.groups_i = QLabel("Группы:", self)
+        self.groups_i.move(QPoint(30, 150))
+        self.groups_table = QListWidget(self)
+        self.groups_table.move(QPoint(30, 180))
+        self.groups_table.addItems(data)
+
+        self.check_admin.clicked.connect(self.check_permission)
+        self.name_i.textChanged.connect(self.check_all)
+        self.surname_i.textChanged.connect(self.check_all)
+        self.email_i.textChanged.connect(self.check_all)
+        self.edc_level_box.currentIndexChanged.connect(self.check_all)
+
+    def add_medcard(self):
+        self.window = self.InsertMedCard(self.medcards, self.birthday)
+        self.window.exec()
+        temp = self.window
+        if temp.is_num and temp.is_date:
+            date = f"{temp.date_i.date().year()}-{temp.date_i.date().month()}-{temp.date_i.date().day()}"
+            self.medcard_dict = {"date_of_issue": date, "number": temp.num_i.text()}
+            self.is_medcard = True
+            self.add_medcard_btn.setStyleSheet("border :1px solid ; border-color : green;")
+            self.add_medcard_btn.setEnabled(False)
+            self.ok_btn.setVisible(self.is_email and self.is_telephone)
+
+    def set_old_data(self):
+        self.name_i.setEnabled(False)
+        self.surname_i.setEnabled(False)
+        self.email_i.setEnabled(False)
+        self.telephone_i.setEnabled(False)
+        self.edc_level_box.setEnabled(False)
+        self.new_data_dict = self.data_dict
+        self.name_i.setText(self.data_dict["name_teacher"])
+        self.surname_i.setText(self.data_dict["surname_teacher"])
+        self.email_i.setText(self.data_dict["work_email"])
+        self.telephone_i.setText(self.data_dict["telephone_number"])
+        self.edc_level_box.setCurrentIndex(self.data_dict["education_level"] - 1)
+        self.is_changed = self.is_medcard = False
+        self.ok_btn.setVisible(False)
+        self.name_i.setStyleSheet("border :1px solid ; border-color : gray;")
+        self.surname_i.setStyleSheet("border :1px solid ; border-color : gray;")
+        self.email_i.setStyleSheet("border :1px solid ; border-color : gray;")
+        self.telephone_i.setStyleSheet("border :1px solid ; border-color : gray;")
+        self.check_medcard_btn.setVisible(True)
+        self.add_medcard_btn.setVisible(False)
+        self.add_medcard_btn.setEnabled(True)
+
+    def fill_edc_level_box(self):
+        cur = self.bd.cursor()
+        cur.execute("SELECT education_level FROM educationlevel")
+        edc_lvl_data = cur.fetchall()
+        cur.close()
+        self.bd.reconnect()
+        self.edc_level_box.addItems([i[0] for i in edc_lvl_data])
+
+    def filter_for_telephone(self):
+        text = self.telephone_i.text()
+        if text.startswith("+7"):
+            text = text.replace("+7", "8")
+        self.telephone_i.setText(text)
+        text = re.findall(r"[8]{1}[0-9]{10}", text)
+        if text:
+            self.telephone_i.setText(text[0])
+            self.telephone_i.setStyleSheet("border :1px solid ; border-color : green;")
+            self.is_telephone = True
+            self.new_data_dict['telephone_number'] = self.telephone_i.text()
+        else:
+            self.telephone_i.setStyleSheet("border :1px solid ; border-color : red;")
+            self.is_telephone = False
+        self.ok_btn.setVisible(self.is_email and self.is_telephone)
+
+    def check_permission(self):
+        if self.is_admin:
+            self.name_i.setEnabled(True)
+            self.surname_i.setEnabled(True)
+            self.email_i.setEnabled(True)
+            self.telephone_i.setEnabled(True)
+            self.edc_level_box.setEnabled(True)
+            if self.id_medcard is None:
+                self.add_medcard_btn.setVisible(True)
+                self.check_medcard_btn.setVisible(False)
+            else:
+                self.check_medcard_btn.setVisible(True)
+                self.add_medcard_btn.setVisible(False)
+        else:
+            self.set_old_data()
+        self.ok_btn.setVisible(False)
+
+    def check_passport(self):
+        if self.id_passport is None:
+            dlg = QMessageBox(self)
+            dlg.setText("У данной записи не существует паспорта")
+            dlg.setStandardButtons(QMessageBox.Ok)
+            dlg.exec()
+        else:
+            cur = self.bd.cursor()
+            cur.execute(f"SELECT * FROM teacherpassport WHERE id_passport={self.id_passport}")
+            table_names = [i[0] for i in cur.description]
+            data = cur.fetchall()[0]
+            cur.close()
+            self.bd.reconnect()
+            dlg = self.CheckPassport({table_names[i]: data[i] for i in range(len(data))})
+            dlg.exec()
+
+    def check_medcard(self):
+        if self.id_medcard is None:
+            dlg = QMessageBox(self)
+            dlg.setText("У данной записи не существует мед.книжки")
+            dlg.setStandardButtons(QMessageBox.Ok)
+            dlg.exec()
+        else:
+            cur = self.bd.cursor()
+            cur.execute(f"SELECT * FROM teachermedcard WHERE id_medcard={self.id_medcard}")
+            table_names = [i[0] for i in cur.description]
+            data = cur.fetchall()[0]
+            cur.close()
+            self.bd.reconnect()
+            dlg = self.CheckMedCard({table_names[i]: data[i] for i in range(len(data))})
+            dlg.exec()
+
+    def check_all(self):
+        if self.sender() == self.name_i:
+            self.new_data_dict['name_teacher'] = self.name_i.text()
+        elif self.sender() == self.surname_i:
+            self.new_data_dict['surname_teacher'] = self.surname_i.text()
+        elif self.sender() == self.email_i:
+            self.new_data_dict['work_email'] = self.email_i.text()
+        elif self.sender() == self.edc_level_box:
+            self.new_data_dict['education_level'] = self.edc_level_box.currentIndex() + 1
+        self.ok_btn.setVisible(self.is_email and self.is_telephone)
 
     def update_col(self):
         accept_dlg = QMessageBox(self)
@@ -938,6 +1159,33 @@ class UpdateTeacherWidget(UpdateWidget):
         but = accept_dlg.exec()
 
         if but == QMessageBox.Yes:
+            for col, data in self.new_data_dict.items():
+                cur = self.bd.cursor()
+                if col == "education_level":
+                    cur.execute(f"UPDATE teacher SET {col}={data} WHERE id_teacher={self.id_row}")
+                elif col != "education_level" and col != "id_documnets":
+                    cur.execute(f"UPDATE teacher SET {col}='{data}' WHERE id_teacher={self.id_row}")
+                self.bd.commit()
+                cur.close()
+                self.bd.reconnect()
+
+            if self.is_medcard:
+                cur = self.bd.cursor()
+                cur.execute(f"INSERT INTO teachermedcard (date_of_issue, number)"
+                            f" VALUES ('{self.medcard_dict['date_of_issue']}', '{self.medcard_dict['number']}')")
+                cur.execute(f"SELECT last_insert_id()")
+                ind = cur.fetchall()[0][0]
+                self.bd.commit()
+                cur.close()
+                self.bd.reconnect()
+
+                cur = self.bd.cursor()
+                cur.execute(f"UPDATE teacherdocuments SET id_medcard={ind}"
+                            f" WHERE id_documnets = {self.data_dict['id_documnets']}")
+                self.bd.commit()
+                cur.close()
+                self.bd.reconnect()
+
             ok_window = QMessageBox(self)
             ok_window.setText("Запись успешно создана")
             ok_window.setStandardButtons(QMessageBox.Ok)
@@ -1367,7 +1615,6 @@ class CheckTask(UpdateWidget):
 
         self.close_btn.move(QPoint(230, 450))
 
-
 class CheckMaterial(UpdateWidget):
     def __init__(self, row_id, bd):
         super().__init__(row_id, bd)
@@ -1399,7 +1646,7 @@ if __name__ == "__main__":
     import sys
 
     app = QApplication(sys.argv)
-    ex = UpdateGroupWidget("2", create_connection())
+    ex = UpdateTeacherWidget("2", create_connection())
     ex.show()
     sys.excepthook = except_hook
     app.exec()
