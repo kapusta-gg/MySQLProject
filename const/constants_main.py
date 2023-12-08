@@ -1,4 +1,5 @@
 from PyQt5.QtCore import QSize
+from windows.update_window import *
 from windows.insert_window import *
 
 UPDATE_SECONDS = 5
@@ -14,6 +15,12 @@ COL_ID_NAME_DATABASE_TABLES = {"Ученики": "id_student",
                                "Курсы": "id_course",
                                "Группы": "id_group"}
 ADMIN_PASSWORD = "admin"
+
+UPDATE_WINDOWS_DICT = {"Ученики": UpdateStudentWidget,
+                       "Преподователи": UpdateTeacherWidget,
+                       "Курсы": UpdateCourseWidget,
+                       "Группы": UpdateGroupWidget}
+
 INSERT_WINDOWS_DICT = {"Ученики": InsertStudentWindow,
                        "Преподователи": InsertTeacherWindow,
                        "Курсы": InsertCourseWindow,

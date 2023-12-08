@@ -107,6 +107,11 @@ class Main(QMainWindow):
     def add_cell_button(self, i, j):
         temp_btn = QCellButton("Инфо", self.tableViewer.item(i, 0).text(), self)
         self.tableViewer.setCellWidget(i, j, temp_btn)
+        temp_btn.clicked.connect(self.open_update_window)
+
+    def open_update_window(self):
+        self.update_window = UPDATE_WINDOWS_DICT[self.table_info.currentText()](self.sender().col_id, self.db)
+        self.update_window.exec()
 
     def delete_rows(self):
         self.update_table_timer.stop()
