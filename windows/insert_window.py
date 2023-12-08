@@ -441,6 +441,7 @@ class InsertStudentWindow(InsertHumanWindow):
                                   "authorized_agency": temp.agency_i.text(), "date_of_issue": issue_date}
             self.passport_btn.setStyleSheet("border :1px solid ; border-color : green;")
             self.passport_btn.setEnabled(False)
+            self.set_visible_final_btn()
 
     def open_birth_window(self):
         self.window = self.InsertBirthCertificate(self.birthday)
@@ -456,6 +457,7 @@ class InsertStudentWindow(InsertHumanWindow):
                                "authorized_agency": temp.agency_i.text(), "date_of_birthday": birth_date}
             self.birth_btn.setStyleSheet("border :1px solid ; border-color : green;")
             self.birth_btn.setEnabled(False)
+            self.set_visible_final_btn()
 
     def fill_box(self):
         cur = self.bd.cursor()
@@ -599,6 +601,7 @@ class InsertStudentWindow(InsertHumanWindow):
                 self.ok_btn.setVisible(False)
 
         def check_date(self):
+            print(self.issue_i.date().year() - self.birth_i.date().year() != 14)
             if self.birthday is not None and self.birthday != self.birth_i.date():
                 self.update_date_windows(False, "red")
             elif self.birth_i.date().year() > self.issue_i.date().year() \

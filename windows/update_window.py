@@ -127,6 +127,7 @@ class UpdateHumanWidget(UpdateWidget):
     class CheckPassport(QDialog):
         def __init__(self, passport_data):
             super().__init__()
+            print(passport_data)
             self.setFixedSize(DOC_WINDOW_SIZE)
             self.series_l = QLabel("Серия:", self)
             self.series_l.move(QPoint(30, 30))
@@ -650,7 +651,7 @@ class UpdateStudentWidget(UpdateHumanWidget):
             dlg.exec()
         else:
             cur = self.bd.cursor()
-            cur.execute(f"SELECT date_of_birthday FROM studentpasport WHERE id_passport={self.id_passport}")
+            cur.execute(f"SELECT * FROM studentpasport WHERE id_passport={self.id_passport}")
             table_names = [i[0] for i in cur.description]
             data = cur.fetchall()[0]
             cur.close()
@@ -688,7 +689,7 @@ class UpdateStudentWidget(UpdateHumanWidget):
         self.ok_btn.setVisible(self.is_email)
 
     def update_status(self):
-        self.new_data_dict["status"] = self.status_box.currentIndex() - 1
+        self.new_data_dict["status"] = self.status_box.currentIndex() + 1
         self.ok_btn.setVisible(self.is_email)
 
     def update_col(self):
@@ -702,6 +703,7 @@ class UpdateStudentWidget(UpdateHumanWidget):
             for col, data in self.new_data_dict.items():
                 cur = self.bd.cursor()
                 if col == "status":
+                    print(col, data)
                     cur.execute(f"UPDATE student SET {col}={data} WHERE id_student={self.id_row}")
                 elif col != "status" and col != "id_documents":
                     cur.execute(f"UPDATE student SET {col}='{data}' WHERE id_student={self.id_row}")
