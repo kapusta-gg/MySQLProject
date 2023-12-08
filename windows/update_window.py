@@ -546,6 +546,9 @@ class UpdateStudentWidget(UpdateHumanWidget):
         self.is_name = self.is_surname = self.is_changed = self.is_passport = self.is_certificate = False
         self.is_email = True
         self.add_passport_btn.setEnabled(True)
+        self.name_i.setStyleSheet("border :1px solid ; border-color : gray;")
+        self.surname_i.setStyleSheet("border :1px solid ; border-color : gray;")
+        self.email_i.setStyleSheet("border :1px solid ; border-color : gray;")
         self.add_passport_btn.setStyleSheet("border :1px solid ; border-color : gray;")
         self.add_certificate_btn.setEnabled(True)
         self.add_certificate_btn.setStyleSheet("border :1px solid ; border-color : gray;")
@@ -658,7 +661,7 @@ class UpdateStudentWidget(UpdateHumanWidget):
     def check_certificate(self):
         if self.id_certificate is None:
             dlg = QMessageBox(self)
-            dlg.setText("У данной записи не существует паспорта")
+            dlg.setText("У данной записи не существует сертификата")
             dlg.setStandardButtons(QMessageBox.Ok)
             dlg.exec()
         else:
